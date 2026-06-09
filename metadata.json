@@ -1,0 +1,6 @@
+{
+  "name": "Crimson Academy - Ôn Thi Trắc Nghiệm & Học Tiếng Anh",
+  "description": "Nền tảng tự động tạo đề từ Word/Excel bằng AI, làm bài thi trắc nghiệm trực quan lưu dữ liệu qua PostgreSQL và gamification từ vựng qua trò chơi Rắn Săn Mồi tương tác bằng HTML5 Canvas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

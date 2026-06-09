@@ -1,0 +1,172 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
+import { useExamStore } from '@/store/useExamStore';
+
+export interface FoodItem {
+  x: number; y: number; word: string; isCorrect: boolean;
+}
+
+export interface SnakeCanvasRefs {
+  canvasRef: React.RefObject<HTMLCanvasElement | null>;
+  gameState: string;
+  snakeRef: React.MutableRefObject<{ x: number; y: number }[]>;
+  prevSnakeRef: React.MutableRefObject<{ x: number; y: number }[]>;
+  directionRef: React.MutableRefObject<{ x: number; y: number }>;
+  foodsRef: React.MutableRefObject<FoodItem[]>;
+  obstaclesRef: React.MutableRefObject<{ x: number; y: number }[]>;
+  lastTickTimeRef: React.MutableRefObject<number>;
+}
+
+const GRID_SIZE = 25;
+const COLS = 30;
+const ROWS = 20;
+const TICK_INTERVAL = 220;
+
+export function SnakeCanvasRenderer({ canvasRef, gameState, snakeRef, prevSnakeRef, directionRef, foodsRef, obstaclesRef, lastTickTimeRef }: SnakeCanvasRefs) {
+  const animRef = useRef<number>(0);
+  const { theme } = useExamStore();
+  const isGreenTheme = theme === 'neon';
+
+  const draw = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const now = performance.now();
+    const elapsed = now - lastTickTimeRef.current;
+    const progress = gameState === 'playing' ? Math.min(1, elapsed / TICK_INTERVAL) : 1;
+
+    ctx.fillStyle = isGreenTheme ? '#F4FAF0' : '#F2EFE7';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    drawGrid(ctx, isGreenTheme);
+    drawObstacles(ctx, obstaclesRef.current, isGreenTheme);
+    drawFoods(ctx, foodsRef.current, now, isGreenTheme);
+
+    const snake = snakeRef.current;
+    const prevSnake = prevSnakeRef.current;
+    const segPositions = snake.map((seg, i) => {
+      const prev = prevSnake[i] || seg;
+      return {
+        x: (prev.x + (seg.x - prev.x) * progress) * GRID_SIZE + GRID_SIZE / 2,
+        y: (prev.y + (seg.y - prev.y) * progress) * GRID_SIZE + GRID_SIZE / 2,
+      };
+    });
+
+    drawSnake(ctx, segPositions, directionRef.current, isGreenTheme);
+  };
+
+  useEffect(() => {
+    if (gameState === 'playing') {
+      const loop = () => { draw(); animRef.current = requestAnimationFrame(loop); };
+      animRef.current = requestAnimationFrame(loop);
+      return () => cancelAnimationFrame(animRef.current);
+    } else {
+      draw();
+    }
+  }, [gameState]);
+
+  return null;
+}
+
+function drawGrid(ctx: CanvasRenderingContext2D, isGreen: boolean) {
+  ctx.strokeStyle = isGreen ? 'rgba(34, 67, 52, 0.12)' : 'rgba(220, 20, 60, 0.08)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= COLS; i++) {
+    ctx.beginPath(); ctx.moveTo(i * GRID_SIZE, 0); ctx.lineTo(i * GRID_SIZE, ROWS * GRID_SIZE); ctx.stroke();
+  }
+  for (let i = 0; i <= ROWS; i++) {
+    ctx.beginPath(); ctx.moveTo(0, i * GRID_SIZE); ctx.lineTo(COLS * GRID_SIZE, i * GRID_SIZE); ctx.stroke();
+  }
+}
+
+function drawObstacles(ctx: CanvasRenderingContext2D, obstacles: { x: number; y: number }[], isGreen: boolean) {
+  obstacles.forEach((obs) => {
+    const ox = obs.x * GRID_SIZE, oy = obs.y * GRID_SIZE;
+    ctx.save();
+    ctx.fillStyle = '#5c4033';
+    ctx.fillRect(ox + 1, oy + 1, GRID_SIZE - 2, GRID_SIZE - 2);
+    ctx.strokeStyle = '#8b6914';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(ox + 1, oy + 1, GRID_SIZE - 2, GRID_SIZE - 2);
+    ctx.strokeStyle = 'rgba(139,105,20,0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(ox + 2, oy + 2); ctx.lineTo(ox + GRID_SIZE - 2, oy + GRID_SIZE - 2);
+    ctx.moveTo(ox + GRID_SIZE - 2, oy + 2); ctx.lineTo(ox + 2, oy + GRID_SIZE - 2);
+    ctx.stroke();
+    ctx.restore();
+  });
+}
+
+function drawFoods(ctx: CanvasRenderingContext2D, foods: FoodItem[], now: number, isGreen: boolean) {
+  foods.forEach((food, fIdx) => {
+    const cx = food.x * GRID_SIZE + GRID_SIZE / 2;
+    const cy = food.y * GRID_SIZE + GRID_SIZE / 2;
+    const scale = 1 + 0.08 * Math.sin(now / 150 + fIdx);
+    const r = (GRID_SIZE / 2.8) * scale;
+
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+    ctx.fillStyle = isGreen ? '#22C55E' : '#DC143C';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 1; ctx.stroke();
+
+    ctx.beginPath(); ctx.arc(cx - r * 0.25, cy - r * 0.25, r * 0.3, 0, 2 * Math.PI);
+    ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fill();
+
+    ctx.beginPath(); ctx.moveTo(cx, cy - r); ctx.lineTo(cx + 2, cy - r - 4);
+    ctx.strokeStyle = '#5c3a1e'; ctx.lineWidth = 1.5; ctx.stroke();
+
+    ctx.beginPath(); ctx.ellipse(cx + 3, cy - r - 2, 4, 2, 0.3, 0, 2 * Math.PI);
+    ctx.fillStyle = '#4a9c59'; ctx.fill();
+
+    ctx.font = 'bold 10px Inter, system-ui';
+    ctx.textAlign = 'center';
+    const textY = food.y === 0 ? food.y * GRID_SIZE + GRID_SIZE + 12 : food.y * GRID_SIZE - 4;
+    const textWidth = ctx.measureText(food.word).width;
+
+    ctx.fillStyle = isGreen ? '#FFFFFF' : '#FFF9FA';
+    ctx.strokeStyle = isGreen ? '#224334' : '#DC143C';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    if (ctx.roundRect) { ctx.roundRect(cx - textWidth / 2 - 5, textY - 10, textWidth + 10, 14, 4); }
+    else { ctx.rect(cx - textWidth / 2 - 5, textY - 10, textWidth + 10, 14); }
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = isGreen ? '#224334' : '#DC143C';
+    ctx.fillText(food.word, cx, textY + 1);
+    ctx.restore();
+  });
+}
+
+function drawSnake(ctx: CanvasRenderingContext2D, segPositions: { x: number; y: number }[], direction: { x: number; y: number }, isGreen: boolean) {
+  if (segPositions.length > 1) {
+    ctx.save();
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.lineWidth = GRID_SIZE - 3; ctx.beginPath();
+    ctx.moveTo(segPositions[0].x, segPositions[0].y);
+    for (let i = 1; i < segPositions.length; i++) ctx.lineTo(segPositions[i].x, segPositions[i].y);
+    ctx.strokeStyle = isGreen ? 'rgba(121, 171, 142, 0.7)' : 'rgba(220, 20, 60, 0.7)';
+    ctx.stroke();
+    ctx.lineWidth = GRID_SIZE - 5;
+    ctx.strokeStyle = isGreen ? 'rgba(121, 171, 142, 0.25)' : 'rgba(220, 20, 60, 0.15)';
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  if (segPositions.length > 0) {
+    const head = segPositions[0];
+    const headR = GRID_SIZE / 2 - 1.5;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(head.x, head.y, headR, 0, 2 * Math.PI);
+    ctx.fillStyle = isGreen ? '#224334' : '#DC143C'; ctx.fill();
+    ctx.fillStyle = isGreen ? '#9ce5c1' : '#FAF9F6';
+    ctx.beginPath(); ctx.arc(head.x + direction.x * 3 - direction.y * 4, head.y + direction.y * 3 + direction.x * 4, 2.5, 0, 2 * Math.PI); ctx.fill();
+    ctx.beginPath(); ctx.arc(head.x + direction.x * 3 + direction.y * 4, head.y + direction.y * 3 - direction.x * 4, 2.5, 0, 2 * Math.PI); ctx.fill();
+    ctx.restore();
+  }
+}

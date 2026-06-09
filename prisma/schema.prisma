@@ -1,0 +1,101 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  STAFF
+  STUDENT
+}
+
+model User {
+  id            String        @id @default(uuid())
+  email         String        @unique
+  password      String        // Mật khẩu băm (bcryptjs)
+  name          String?
+  role          Role          @default(STUDENT)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  uploadedExams Exam[]        @relation("UploadedBy")
+  examAttempts  ExamAttempt[]
+  examResults   UserExamResult[]
+  gameScores    GameScore[]
+}
+
+model Exam {
+  id          String        @id @default(uuid())
+  title       String
+  description String?
+  duration    Int           // Thời gian làm bài (phút)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  uploadedBy  User          @relation("UploadedBy", fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  questions   Question[]
+  attempts    ExamAttempt[]
+}
+
+model Question {
+  id          String   @id @default(uuid())
+  content     String   // Nội dung câu hỏi
+  explanation String?  // Giải thích chi tiết đáp án đúng
+  points      Int      @default(1)
+  order       Int      @default(0)
+  exam        Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  examId      String
+  answers     Answer[]
+}
+
+model Answer {
+  id         String   @id @default(uuid())
+  content    String   // Nội dung câu trả lời (A, B, C, D)
+  isCorrect  Boolean  @default(false)
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId String
+}
+
+model ExamAttempt {
+  id          String   @id @default(uuid())
+  score       Float    // Điểm số đạt được
+  durationSec Int      // Thời gian làm bài thực tế (giây)
+  answers     Json     // Lưu danh sách câu trả lời đã chọn và tính đúng sai dạng JSON
+  startedAt   DateTime @default(now())
+  endedAt     DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  exam        Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  examId      String
+}
+
+model UserExamResult {
+  id             String   @id @default(uuid())
+  userId         String
+  examId         String
+  examTitle      String
+  score          Float
+  correctAnswers Int
+  wrongAnswers   Int
+  timeSpent      Int      // giây
+  completedAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([score])
+  @@index([completedAt])
+}
+
+model GameScore {
+  id                 String   @id @default(uuid())
+  score              Int      // Điểm số game Rắn Săn Mồi
+  vocabularyCategory String   // Chủ đề từ vựng đã chơi
+  durationSeconds    Int      // Thời gian chơi (giây)
+  playedAt           DateTime @default(now())
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             String
+}

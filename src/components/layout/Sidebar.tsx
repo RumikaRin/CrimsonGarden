@@ -1,0 +1,175 @@
+'use client';
+
+import React, { useState, useRef } from 'react';
+import { useExamStore, computeStreak } from '@/store/useExamStore';
+import { usePathname, useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
+import { useIsGreen } from '@/lib/useThemeTokens';
+import { motion, AnimatePresence } from 'motion/react';
+import {
+  Home, PenLine, Gamepad2, Trophy, Upload,
+  User, ShieldCheck, Flame, LogOut, ChevronDown, Settings, Menu, X
+} from 'lucide-react';
+
+const navItems = [
+  { path: '/', label: 'Trang Chủ', icon: Home },
+  { path: '/quiz', label: 'Luyện Đề', icon: PenLine },
+  { path: '/snake', label: 'Săn Từ Vựng', icon: Gamepad2 },
+  { path: '/leaderboard', label: 'Bảng Xếp Hạng', icon: Trophy },
+  { path: '/generate', label: 'Bóc Tách Đề', icon: Upload },
+];
+
+export function Sidebar() {
+  const { theme, setTheme, currentUser, activityDates, logout, switchRole, isExamActive } = useExamStore();
+  const pathname = usePathname();
+  const router = useRouter();
+  const isGreenTheme = useIsGreen();
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef(null);
+
+  const streak = computeStreak(activityDates);
+  const isAdminMode = currentUser?.role === 'ADMIN';
+
+  const initials = currentUser?.name
+    ? currentUser.name.split(' ').map((w) => w[0]).slice(-2).join('').toUpperCase()
+    : '??';
+
+  if (!currentUser) return null;
+
+  return (
+    <>
+      {/* Mobile header (collapsed sidebar trigger) */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 px-2 pt-2">
+        <div className={cn('rounded-2xl px-4 h-14 flex items-center justify-between border',
+          isGreenTheme ? 'card-layered' : 'bg-[#FFF5F7] border-[var(--accent)]'
+        )}>
+          <span className="font-serif text-lg font-bold">
+            <span className="text-[var(--accent)]">Crimson</span>{' '}
+            <span className="italic font-normal text-[var(--accent)]">Garden</span>
+          </span>
+          <div className="flex items-center gap-2">
+            <div className={cn('px-2 py-1 rounded-lg text-[9px] font-bold uppercase', 'bg-[var(--accent-light)]/20 text-[var(--accent)]')}>
+              {streak > 0 ? streak + ' ngày' : '0 ngày'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop sidebar */}
+      <aside className={cn(
+        'hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-64 z-40 border-r transition-colors duration-300',
+        isGreenTheme
+          ? 'bg-white border-[var(--border-default)]'
+          : 'bg-[#FFF5F7] border-[var(--border-default)]'
+      )}>
+        {/* Logo */}
+        <div className="px-6 pt-8 pb-6 border-b border-[var(--border-default)]">
+          <button onClick={() => router.push('/')} className="text-left cursor-pointer">
+            <span className="font-serif text-2xl tracking-tight font-bold block">
+              <span className="text-[var(--accent)]">Crimson</span>{' '}
+              <span className="italic font-normal text-[var(--accent)]">Garden</span>
+            </span>
+            <p className="text-[9px] font-sans font-bold tracking-[0.25em] uppercase mt-1 text-[var(--text-muted)]">
+              HỌ VIỆN THƯ THÁI
+            </p>
+          </button>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 px-3 py-6 space-y-1.5 overflow-y-auto">
+          {navItems.map(({ path, label, icon: Icon }) => {
+            const isActive = pathname === path && !isAdminMode;
+            return (
+              <motion.button
+                key={path}
+                onClick={() => router.push(path)}
+                whileHover={{ x: 2 }}
+                whileTap={{ scale: 0.98 }}
+                className={cn(
+                  'w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-sans font-medium transition-all text-left',
+                  isActive
+                    ? 'bg-[var(--accent-light)] text-[var(--accent)] shadow-sm font-bold'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--accent-light)]/30'
+                )}
+              >
+                <Icon className={cn('w-4 h-4 shrink-0', isActive ? 'text-[var(--accent)]' : '')} />
+                <span>{label}</span>
+                {path === '/quiz' && isExamActive && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-ping ml-auto" />
+                )}
+              </motion.button>
+            );
+          })}
+        </nav>
+
+        {/* Bottom: Theme + Profile */}
+        <div className="px-3 py-4 border-t border-[var(--border-default)] space-y-3">
+          {/* Theme toggle */}
+          <div className="flex items-center bg-[var(--page-bg)] p-0.5 rounded-lg border border-[var(--border-default)]">
+            <button
+              onClick={() => setTheme('cozy')}
+              className={cn(
+                'flex-1 px-3 py-1.5 rounded-md text-[10px] font-sans font-bold uppercase tracking-wider transition-all',
+                !isGreenTheme
+                  ? 'bg-[var(--accent)] text-white shadow-sm'
+                  : 'text-[var(--text-secondary)] opacity-60 hover:opacity-100'
+              )}
+            >Crimson</button>
+            <button
+              onClick={() => setTheme('neon')}
+              className={cn(
+                'flex-1 px-3 py-1.5 rounded-md text-[10px] font-sans font-bold uppercase tracking-wider transition-all',
+                isGreenTheme
+                  ? 'bg-[var(--accent)] text-white shadow-sm'
+                  : 'text-[var(--text-secondary)] opacity-60 hover:opacity-100'
+              )}
+            >Garden</button>
+          </div>
+
+          {/* Profile */}
+          <button
+            onClick={() => router.push('/settings')}
+            className={cn(
+              'w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-sans font-medium transition-all',
+              'text-[var(--text-primary)] hover:bg-[var(--accent-light)]/30'
+            )}
+          >
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0"
+              style={{ backgroundColor: 'var(--accent-light)', color: 'var(--accent)' }}
+            >
+              {initials}
+            </div>
+            <div className="text-left min-w-0 flex-1">
+              <p className="font-serif font-bold text-sm truncate">{currentUser.name}</p>
+              <p className="text-[10px] text-[var(--text-muted)] truncate">{currentUser.email}</p>
+            </div>
+            <ChevronDown className="w-3 h-3 text-[var(--text-muted)] shrink-0" />
+          </button>
+
+          {/* Role switch */}
+          <button
+            onClick={() => { switchRole(); isAdminMode ? router.push('/') : router.push('/admin'); }}
+            className={cn(
+              'w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-[11px] font-sans font-bold transition-all',
+              isAdminMode
+                ? 'bg-[#1A1814] text-white'
+                : 'bg-[var(--accent-light)]/30 text-[var(--accent)]'
+            )}
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            {isAdminMode ? 'Chế độ Giáo Viên' : 'Chế độ Học Sinh'}
+          </button>
+
+          {/* Logout */}
+          <button
+            onClick={() => logout()}
+            className="w-full flex items-center gap-2.5 px-4 py-2 rounded-xl text-[11px] font-sans text-red-500 hover:bg-red-50 transition-all cursor-pointer"
+          >
+            <LogOut className="w-3.5 h-3.5" /> Đăng xuất
+          </button>
+        </div>
+      </aside>
+    </>
+  );
+}
