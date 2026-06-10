@@ -3,7 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { SplineScene } from './splite';
-import { Card, CardContent } from './card';
+import { CardContent } from './card';
 import { Spotlight } from './spotlight';
 import { SpotlightStatic } from './spotlight-static';
 import { Sparkles, ArrowRight } from 'lucide-react';
@@ -11,9 +11,9 @@ import { useExamStore } from '@/store/useExamStore';
 import { cn } from '@/lib/utils';
 
 const benefits = [
-  'Import đề Word/Excel, tự động bóc tách câu hỏi',
-  'Làm trắc nghiệm có chấm điểm và giải thích tức thì',
-  'Săn từ vựng qua game Snake, rèn phản xạ ghi nhớ',
+  'Luyện đề cá nhân hoặc trộn nhiều đề thành Quiz nhanh',
+  'Chơi Quiz nhanh và Snake để tích điểm thi đua',
+  'Ôn lại câu sai với giải thích chi tiết',
 ];
 
 export function SplineSceneBasic() {
@@ -60,7 +60,7 @@ export function SplineSceneBasic() {
                 <span className={cn('italic font-normal', accentText)}>Thông Minh</span>
               </h1>
               <p className="text-sm font-sans text-[#78716C] leading-relaxed max-w-md">
-                Bóc tách đề thi, luyện trắc nghiệm và săn từ vựng trong một nền tảng tương tác.
+                Học cùng robot, luyện đề và tham gia các mini game tương tác.
               </p>
             </div>
 
@@ -73,18 +73,18 @@ export function SplineSceneBasic() {
               ))}
             </ul>
 
-            <div className="bg-white rounded-2xl border border-[#1A1814]/8 shadow-lg p-5 space-y-3 max-w-sm">
+            <div className="border-t border-[#1A1814]/10 pt-5 space-y-3 max-w-sm">
               <div className="space-y-1">
                 <p className="font-serif font-bold text-[#1A1814] text-base">Bắt đầu ôn luyện</p>
                 <p className="text-xs font-sans text-[#78716C]">
-                  Chọn đề thi hoặc tiếp tục bài đang làm dở.
+                  Chọn một đề thi hoặc bắt đầu Quiz nhanh đã trộn đề.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => router.push('/quiz')}
                 className={cn(
-                  'w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-sans font-bold uppercase tracking-wider text-white transition-all cursor-pointer hover:opacity-90 active:scale-[0.98]',
+                  'w-full min-h-11 flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-sans font-bold uppercase tracking-wider text-white transition-all cursor-pointer hover:opacity-90 active:scale-[0.98]',
                   accentBg,
                 )}
               >

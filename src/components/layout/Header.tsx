@@ -6,15 +6,13 @@ import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useIsGreen } from '@/lib/useThemeTokens';
 import { motion, AnimatePresence } from 'motion/react';
-import {
-  User, ShieldCheck, Flame, LogOut, ChevronDown, Settings
-} from 'lucide-react';
+import { ShieldCheck, Flame, LogOut, ChevronDown, Settings } from 'lucide-react';
 
 interface HeaderProps {
 }
 
 export function Header({}: HeaderProps) {
-  const { isExamActive, theme, setTheme, currentUser, activityDates, logout, switchRole } = useExamStore();
+  const { isExamActive, setTheme, currentUser, activityDates, logout } = useExamStore();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -160,7 +158,7 @@ export function Header({}: HeaderProps) {
                     <div className="px-3 py-2 mb-1">
                       <p className="text-[9px] font-sans font-bold uppercase tracking-widest text-neutral-400 mb-2">Chế độ quản trị</p>
                       <button
-                        onClick={() => { switchRole(); isAdminMode ? router.push('/') : router.push('/admin'); }}
+                        onClick={() => router.push(isAdminMode ? '/admin' : '/')}
                         className={cn(
                           'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[11px] font-sans font-bold transition-all cursor-pointer',
                           isAdminMode
@@ -170,12 +168,8 @@ export function Header({}: HeaderProps) {
                               : 'bg-neutral-100 text-[#1A1814] hover:bg-neutral-200'
                         )}
                       >
-                        {isAdminMode ? (
-                          <><ShieldCheck className="w-3.5 h-3.5 text-[var(--accent)]" /> Chế độ Giáo Viên (Admin)</>
-                        ) : (
-                          <><User className="w-3.5 h-3.5" /> Chế độ Học Sinh</>
-                        )}
-                        <span className="ml-auto text-[9px] opacity-60">{isAdminMode ? '→ Học sinh' : '→ Giáo viên'}</span>
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        {isAdminMode ? 'Mở trang quản trị' : 'Tài khoản học sinh'}
                       </button>
                     </div>
 

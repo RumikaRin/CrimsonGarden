@@ -8,11 +8,11 @@ import { useIsGreen } from '@/lib/useThemeTokens';
 import { useRouter } from 'next/navigation';
 import { Trophy, Medal, BookOpen, Gamepad2, Flame, Star, Award, Crown, Clock, Target, ArrowRight } from 'lucide-react';
 
-type Mode = 'most-exams' | 'streak' | 'leaderboard';
+type Mode = 'competition' | 'most-exams' | 'streak' | 'leaderboard';
 
 export default function Leaderboard() {
   const { attempts, gameScores, exams, currentUser, activityDates } = useExamStore();
-  const [mode, setMode] = useState<Mode>('leaderboard');
+  const [mode, setMode] = useState<Mode>('competition');
   const isGreenTheme = useIsGreen();
   const router = useRouter();
 
@@ -20,6 +20,7 @@ export default function Leaderboard() {
   const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
   const [streakData, setStreakData] = useState<any[]>([]);
   const [mostExamsData, setMostExamsData] = useState<any[]>([]);
+  const [competitionData, setCompetitionData] = useState<any[]>([]);
   const [loadingLB, setLoadingLB] = useState(true);
 
   useEffect(() => {
@@ -42,6 +43,7 @@ export default function Leaderboard() {
       if (statsData.success) {
         if (statsData.streak) setStreakData(statsData.streak);
         if (statsData.mostExams) setMostExamsData(statsData.mostExams);
+        if (statsData.competition) setCompetitionData(statsData.competition);
       }
       setLoadingLB(false);
     }).catch(() => setLoadingLB(false));
@@ -79,6 +81,37 @@ export default function Leaderboard() {
   }, [attempts, gameScores, currentUser, userNameMap]);
 
   const displayedMostExams = mostExamsData.length > 0 ? mostExamsData : localMostExams;
+
+  const localCompetition = useMemo(() => {
+    const map = new Map<string, { userId: string; name: string; email?: string; points: number; examPoints: number; gamePoints: number }>();
+    const getEntry = (userId: string) => map.get(userId) || {
+      userId,
+      name: userNameMap[userId] || (userId === currentUser?.id ? currentUser.name : userId),
+      email: userId === currentUser?.id ? currentUser.email : undefined,
+      points: 0,
+      examPoints: 0,
+      gamePoints: 0,
+    };
+    attempts.forEach((attempt) => {
+      const entry = getEntry(attempt.userId);
+      const points = Math.round(attempt.score * 10);
+      entry.points += points;
+      entry.examPoints += points;
+      map.set(attempt.userId, entry);
+    });
+    gameScores.forEach((game) => {
+      const entry = getEntry(game.userId);
+      entry.points += game.score;
+      entry.gamePoints += game.score;
+      map.set(game.userId, entry);
+    });
+    return Array.from(map.values())
+      .filter((entry) => shouldShowOnLeaderboard(entry.userId))
+      .sort((a, b) => b.points - a.points)
+      .slice(0, 10);
+  }, [attempts, gameScores, currentUser, userNameMap]);
+
+  const displayedCompetition = competitionData.length > 0 ? competitionData : localCompetition;
 
   const displayedStreak = useMemo(() => {
     const merged = new Map<string, { userId: string; name: string; email?: string; streak: number }>();
@@ -205,6 +238,7 @@ export default function Leaderboard() {
   );
 
   const modeTabs: { key: Mode; icon: any; label: string }[] = [
+    { key: 'competition', icon: Crown, label: 'Điểm Thi Đua' },
     { key: 'leaderboard', icon: Trophy, label: 'Bảng Xếp Hạng' },
     { key: 'most-exams', icon: BookOpen, label: 'Nhiều Bài Nhất' },
     { key: 'streak', icon: Flame, label: 'Streak Cao Nhất' },
@@ -212,13 +246,13 @@ export default function Leaderboard() {
 
   return (
     <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 lg:p-8 space-y-8">
-      <div className="text-center space-y-3">
+      <div className="space-y-3 border-b border-[var(--border-default)] pb-7">
         <span className={cn("text-[11px] font-sans font-bold tracking-[0.2em] uppercase", accentText)}>BẢNG XẾP HẠNG</span>
-        <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#1A1814] tracking-tight">Thành Tích Nổi Bật</h2>
-        <p className="text-sm text-neutral-500 font-sans max-w-lg mx-auto leading-relaxed">Xếp hạng dựa trên điểm số, thời gian và thành tích học tập thực tế từ cơ sở dữ liệu.</p>
+        <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#1A1814] tracking-tight">Thi Đua Cùng Nhau</h2>
+        <p className="text-sm text-neutral-500 font-sans max-w-2xl leading-relaxed">Mỗi điểm bài thi được quy đổi x10; điểm Quiz nhanh và Snake được cộng trực tiếp vào điểm thi đua.</p>
       </div>
 
-      <div className="flex items-center justify-center gap-2 bg-neutral-100 p-1 rounded-2xl w-fit mx-auto border border-neutral-200/60 flex-wrap">
+      <div className="flex items-center gap-2 bg-neutral-100 p-1 rounded-2xl w-fit border border-neutral-200/60 flex-wrap">
         {modeTabs.map(({ key, icon: Icon, label }) => (
           <button key={key} onClick={() => setMode(key)}
             className={cn("flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-serif font-bold uppercase tracking-wider transition-all cursor-pointer",
@@ -229,6 +263,38 @@ export default function Leaderboard() {
           </button>
         ))}
       </div>
+
+      {mode === 'competition' && (
+        displayedCompetition.length === 0 ? (
+          <EmptyState
+            icon={Crown}
+            text="Chưa có điểm thi đua"
+            subtext="Làm bài thi, chơi Quiz nhanh hoặc Snake để tích điểm."
+            ctaLabel="Chơi Quiz nhanh"
+            ctaPath="/quick-quiz"
+          />
+        ) : (
+          <div className="space-y-2.5">
+            {displayedCompetition.map((entry: any, i: number) => {
+              const displayName = getDisplayName(entry);
+              return (
+                <RowBase
+                  key={entry.userId}
+                  userId={entry.userId}
+                  i={i}
+                  initials={getInitials(displayName)}
+                  displayName={displayName}
+                  trailing={<div className="text-right"><p className="font-mono text-xl font-bold text-[var(--accent)]">{entry.points}</p><p className="text-[9px] uppercase tracking-wider text-neutral-400">điểm</p></div>}
+                >
+                  <p className="mt-0.5 text-[10px] text-neutral-500">
+                    Bài thi {entry.examPoints || 0}đ · Mini game {entry.gamePoints || 0}đ
+                  </p>
+                </RowBase>
+              );
+            })}
+          </div>
+        )
+      )}
 
       {mode === 'leaderboard' && (
         loadingLB ? <LoadingSpinner text="Đang tải bảng xếp hạng..." /> :

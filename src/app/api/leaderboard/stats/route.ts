@@ -37,6 +37,7 @@ export async function GET() {
     const activityByUser = new Map<string, { dates: string[]; user: UserInfo | null }>();
     const examCountByUser = new Map<string, { count: number; user: UserInfo | null }>();
     const gameCountByUser = new Map<string, { count: number; user: UserInfo | null }>();
+    const competitionByUser = new Map<string, { points: number; examPoints: number; gamePoints: number; user: UserInfo | null }>();
 
     for (const r of examResults) {
       const bucket = activityByUser.get(r.userId) || { dates: [], user: r.user };
@@ -48,6 +49,13 @@ export async function GET() {
       exams.count++;
       exams.user = r.user;
       examCountByUser.set(r.userId, exams);
+
+      const competition = competitionByUser.get(r.userId) || { points: 0, examPoints: 0, gamePoints: 0, user: r.user };
+      const points = Math.round(r.score * 10);
+      competition.points += points;
+      competition.examPoints += points;
+      competition.user = r.user;
+      competitionByUser.set(r.userId, competition);
     }
 
     for (const a of examAttempts) {
@@ -67,6 +75,12 @@ export async function GET() {
       games.count++;
       games.user = g.user;
       gameCountByUser.set(g.userId, games);
+
+      const competition = competitionByUser.get(g.userId) || { points: 0, examPoints: 0, gamePoints: 0, user: g.user };
+      competition.points += g.score;
+      competition.gamePoints += g.score;
+      competition.user = g.user;
+      competitionByUser.set(g.userId, competition);
     }
 
     const streak = Array.from(activityByUser.entries())
@@ -96,7 +110,17 @@ export async function GET() {
       .sort((a, b) => b.examCount - a.examCount)
       .slice(0, 10);
 
-    return NextResponse.json({ success: true, streak, mostExams });
+    const competition = Array.from(competitionByUser.entries())
+      .map(([userId, value]) => toEntry(value.user, userId, {
+        points: value.points,
+        examPoints: value.examPoints,
+        gamePoints: value.gamePoints,
+      }))
+      .filter((entry) => shouldShowOnLeaderboard(entry.userId))
+      .sort((a, b) => b.points - a.points)
+      .slice(0, 10);
+
+    return NextResponse.json({ success: true, streak, mostExams, competition });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error('[Leaderboard Stats Error]:', err);

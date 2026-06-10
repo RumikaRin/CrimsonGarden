@@ -11,15 +11,17 @@
     --forest-mid: rgba(33, 77, 57, 0.20);
     --offset-distance: 8px;
     --offset-color: var(--forest);
-    --card-radius: 24px;
-    --card-border: var(--forest);
+    --card-radius: 16px;
+    --card-border: rgba(33, 77, 57, 0.16);
     --card-bg: #FFFFFF;
-    --page-bg: #F6F7F2;
+    --page-bg: #F4FAF0;
+    --surface-soft: #EEF5EC;
+    --surface-raised: #FFFFFF;
     --accent: var(--forest);
     --accent-hover: #1A3D2D;
     --accent-light: rgba(33, 77, 57, 0.10);
     --text-primary: #1A1814;
-    --text-secondary: #5C6B63;
+    --text-secondary: #52665B;
     --text-muted: #9AABA0;
     --border-default: rgba(33, 77, 57, 0.15);
     --nav-active-bg: var(--forest);
@@ -38,7 +40,8 @@
     --warning: #EAB308;
     --scrollbar-thumb: rgba(33, 77, 57, 0.30);
     --scrollbar-thumb-hover: rgba(33, 77, 57, 0.50);
-    --card-shadow: 8px 8px 0px var(--forest);
+    --card-shadow: 0 12px 32px rgba(33, 77, 57, 0.10);
+    --focus-ring: rgba(33, 77, 57, 0.24);
     --background: 40 33% 95%;
     --foreground: 30 15% 10%;
 
@@ -84,6 +87,10 @@
     @apply border-border;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     background-color: var(--page-bg, hsl(var(--background)));
     color: hsl(var(--foreground));
@@ -117,6 +124,23 @@
   h6 {
     @apply font-sans font-semibold;
   }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--page-bg)];
+  }
+
+  button,
+  a {
+    @apply transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-200;
+  }
+
+  button:active {
+    transform: translateY(1px) scale(0.99);
+  }
 }
 
 @layer components {
@@ -147,7 +171,7 @@
   }
 
   .section-premium {
-    @apply py-28 md:py-32;
+    @apply py-20 md:py-28;
   }
 
   .eyebrow-pill {
@@ -166,6 +190,27 @@
   opacity: 1;
   transform: translateY(0);
   filter: blur(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .scroll-reveal {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
 }
 
 ::-webkit-scrollbar {
@@ -216,12 +261,17 @@ select:focus {
   .card-layered {
     position: relative;
     background: var(--card-bg);
-    border: 1.5px solid var(--card-frame-color, #214D39);
+    border: 1px solid var(--card-frame-color, rgba(33, 77, 57, 0.16));
     border-radius: var(--card-radius, 20px);
-    box-shadow: 4px 4px 0 0 var(--card-frame-color, #214D39);
+    box-shadow: var(--card-shadow);
+    transition: transform 220ms var(--ease-premium), box-shadow 220ms var(--ease-premium), border-color 220ms var(--ease-premium);
+  }
+
+  .card-layered:hover {
+    box-shadow: var(--card-shadow-hover, 0 18px 42px rgba(33, 77, 57, 0.14));
   }
 
   .card-border {
-    box-shadow: var(--card-shadow, 8px 8px 0px var(--forest));
+    box-shadow: var(--card-shadow, 0 12px 32px rgba(33, 77, 57, 0.10));
   }
 }

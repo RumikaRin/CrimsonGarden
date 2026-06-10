@@ -7,7 +7,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { Footer } from '@/components/layout/Footer';
 import MainLayoutWrapper from '@/components/layout/MainLayoutWrapper';
 import LoginScreen from '@/components/LoginScreen';
-import { Home, PenLine, Gamepad2, Trophy, Upload } from 'lucide-react';
+import { Home, PenLine, Gamepad2, Brain, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -51,7 +51,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
     root.style.setProperty(
       '--card-frame-color',
-      isGreenTheme ? '#214D39' : '#DC143C'
+      isGreenTheme ? 'rgba(34, 67, 52, 0.18)' : 'rgba(220, 20, 60, 0.16)'
     );
     root.style.setProperty(
       '--card-bg',
@@ -68,6 +68,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     root.style.setProperty(
       '--accent-light',
       isGreenTheme ? 'rgba(156, 229, 193, 0.15)' : 'rgba(220, 20, 60, 0.08)'
+    );
+    root.style.setProperty(
+      '--surface-soft',
+      isGreenTheme ? '#EEF5EC' : '#F7EDEF'
+    );
+    root.style.setProperty(
+      '--card-shadow',
+      isGreenTheme
+        ? '0 12px 32px rgba(34, 67, 52, 0.10)'
+        : '0 12px 32px rgba(73, 24, 34, 0.10)'
+    );
+    root.style.setProperty(
+      '--card-shadow-hover',
+      isGreenTheme
+        ? '0 18px 42px rgba(34, 67, 52, 0.14)'
+        : '0 18px 42px rgba(73, 24, 34, 0.14)'
+    );
+    root.style.setProperty(
+      '--focus-ring',
+      isGreenTheme ? 'rgba(34, 67, 52, 0.28)' : 'rgba(220, 20, 60, 0.24)'
     );
     root.classList.toggle('green', isGreenTheme);
   }, [isGreenTheme]);
@@ -88,16 +108,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     ? 'bg-[#f4faf0] text-[#224334]'
     : 'bg-[#F2EFE7] text-[#1A1814]';
 
-  const containerBorderClass = 'bg-white border border-[var(--accent)] shadow-[var(--card-shadow)]';
-
   const isAdminPage = pathname === '/admin';
 
   const mobileTabs = [
     { path: '/', label: 'Trang Chủ', icon: Home },
     { path: '/quiz', label: 'Luyện Đề', icon: PenLine },
+    { path: '/quick-quiz', label: 'Quiz', icon: Brain },
     { path: '/snake', label: 'Snake', icon: Gamepad2 },
-    { path: '/leaderboard', label: 'Xếp Hạng', icon: Trophy },
-    { path: '/generate', label: 'Bóc Tách', icon: Upload },
+    { path: '/leaderboard', label: 'Thi Đua', icon: Trophy },
   ] as const;
 
   return (
@@ -105,33 +123,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Sidebar />
       <div className="fixed inset-0 pointer-events-none opacity-[0.015] bg-[radial-gradient(#1A1814_1px,transparent_1px)] [background-size:16px_16px] z-0" />
 
-      <div className="relative z-10 md:pl-64">
+      <div className="relative z-10 md:pl-64 pb-20 md:pb-0">
 
-        {/* Mobile Navigation Bar */}
-        <div className="md:hidden mx-2 mt-2">
-          <div className={`${containerBorderClass} rounded-xl p-1.5 flex gap-1`} style={{ borderWidth: 3 }}>
+        <nav aria-label="Điều hướng chính trên di động" className="md:hidden fixed bottom-2 left-2 right-2 z-50">
+          <div className="bg-[var(--card-bg)]/95 backdrop-blur-xl border border-[var(--border-default)] rounded-2xl p-1.5 flex gap-1 shadow-[var(--card-shadow)]">
             {mobileTabs.map((t) => (
               <button
                 key={t.path}
                 onClick={() => router.push(t.path)}
+                aria-current={pathname === t.path && !isAdminPage ? 'page' : undefined}
                 className={cn(
-                  'flex-1 px-2 py-2.5 rounded-lg text-[11px] font-sans font-bold uppercase tracking-wider transition-all text-center',
+                  'flex-1 min-h-12 px-1 py-2 rounded-xl text-[11px] font-sans font-semibold transition-all text-center',
                   pathname === t.path && !isAdminPage
                     ? isGreenTheme
-                      ? 'bg-[#224334] text-white shadow-sm'
-                      : 'bg-[#DC143C] text-white shadow-sm'
+                      ? 'bg-[#224334] text-white'
+                      : 'bg-[#DC143C] text-white'
                     : 'text-neutral-500 hover:text-neutral-800'
                 )}
               >
                 <t.icon className="w-4 h-4 mx-auto" />
-                <span className="block text-[9px] mt-0.5 font-sans">{t.label}</span>
+                <span className="block text-[9px] mt-1 font-sans leading-none">{t.label}</span>
               </button>
             ))}
           </div>
-        </div>
+        </nav>
 
         <MainLayoutWrapper>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-8 md:py-10">
             {children}
           </div>
         </MainLayoutWrapper>

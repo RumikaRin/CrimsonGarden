@@ -425,27 +425,23 @@ export default function VocabularySnake() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Game Dashboard Sub-Header */}
-      <div className={cn('rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4', cardFrame)}>
+      <div className="flex flex-col gap-5 border-b border-[var(--border-default)] pb-6 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-sans font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full" style={{ backgroundColor: tokens.accentLight, color: tokens.accent }}>
-              Game Học Tập
-            </span>
-            <span className="text-[10px] text-zinc-400 font-medium">Bản cập nhật v2.0</span>
+            <span className="text-[10px] font-sans font-bold uppercase tracking-[0.22em]" style={{ color: tokens.accent }}>Game học tập</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-serif font-bold text-[var(--text-primary)] tracking-tight">
+          <h2 className="text-3xl sm:text-4xl font-serif font-bold text-[var(--text-primary)] tracking-tight">
             Săn Từ Vựng
           </h2>
           <p className="text-xs text-[var(--text-secondary)] font-sans">
-            Rèn luyện phản xạ nhớ từ vựng tiếng Anh theo phương pháp Gamification
+            Rèn phản xạ từ vựng và tích điểm thi đua sau mỗi lượt chơi.
           </p>
         </div>
 
         {/* Digital Stats area */}
         <div className="flex flex-wrap items-center gap-3 sm:gap-4">
           {/* Score Counter */}
-          <div className={cn('px-4 py-2.5 rounded-xl border flex flex-col min-w-[100px]',
-            isGreenTheme ? 'bg-[#F4FAF0] border-[#224334]/20' : 'bg-[#FFF5F7] border-[#DC143C]/15',)}>
+          <div className="flex min-w-[100px] flex-col border-l border-[var(--border-default)] px-4 py-1">
             <span className="text-[9px] font-sans font-bold uppercase tracking-wider text-[var(--text-secondary)]">Điểm Số</span>
             <span className="text-2xl font-mono font-bold leading-none tracking-wider text-[var(--text-primary)]">
               {formatScore(score)}
@@ -453,8 +449,7 @@ export default function VocabularySnake() {
           </div>
 
           {/* High Score Pill */}
-          <div className={cn('px-4 py-2.5 rounded-xl border flex flex-col min-w-[100px]',
-            isGreenTheme ? 'bg-[#F4FAF0] border-[#224334]/20' : 'bg-[#FFF5F7] border-[#DC143C]/15',)}>
+          <div className="flex min-w-[100px] flex-col border-l border-[var(--border-default)] px-4 py-1">
             <span className="text-[9px] font-sans font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-1">
               <Award className="w-3 h-3 text-amber-500" /> Điểm Cao Nhất
             </span>
@@ -507,13 +502,11 @@ export default function VocabularySnake() {
         {/* Column 1: Cột Trái (Main Stage) */}
         <div className="xl:col-span-8 space-y-4">
           {/* Target Word Card (Flashcard style) */}
-          <div className={cn('rounded-2xl border-2 p-5 text-center min-h-[96px] flex flex-col justify-center relative overflow-hidden transition-all duration-300 shadow-inner',
+          <div className={cn('rounded-2xl border p-5 text-center min-h-[96px] flex flex-col justify-center relative overflow-hidden transition-all duration-300',
             gameState === 'playing' && targetWord
-              ? (isGreenTheme ? 'bg-[#224334] border-[#9CE5C1] text-white' : 'bg-[#1A1814] border-[#DC143C] text-white')
+              ? (isGreenTheme ? 'bg-[#224334] border-[#224334] text-white' : 'bg-[#1A1814] border-[#1A1814] text-white')
               : (isGreenTheme ? 'bg-[#FAF9F6] border-[#224334]/30' : 'bg-[#FFF9F6] border-[#DC143C]/25'),
           )}>
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-80" />
-            
             {gameState === 'playing' && targetWord ? (
               <div className="space-y-1 animate-fade-in">
                 <span className="text-[10px] font-sans font-bold uppercase tracking-[0.25em] opacity-70 flex items-center justify-center gap-1.5">
@@ -539,10 +532,10 @@ export default function VocabularySnake() {
           </div>
 
           {/* Canvas Wrapper Board */}
-          <div className="relative w-full aspect-[15/10] max-w-[900px] mx-auto rounded-[24px] border-4 bg-white overflow-hidden transition-all duration-300"
+          <div className="relative w-full aspect-[15/10] max-w-[900px] mx-auto rounded-2xl border bg-white overflow-hidden transition-all duration-300"
             style={{
               borderColor: tokens.accent,
-              boxShadow: tokens.cardShadow.replace(/_/g, ' ')
+              boxShadow: '0 18px 42px rgba(26, 24, 20, 0.12)'
             }}
           >
             {/* The HTML5 Canvas */}
@@ -573,14 +566,14 @@ export default function VocabularySnake() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="absolute inset-0 bg-[#F2EFE7]/95 dark:bg-zinc-950/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-30"
+                  className="absolute inset-0 bg-[#F2EFE7]/96 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-30"
                 >
                   <motion.div
                     initial={{ scale: 0.9, y: 10 }}
                     animate={{ scale: 1, y: 0 }}
                     className="max-w-md space-y-5 flex flex-col items-center"
                   >
-                    <div className="w-16 h-16 rounded-full flex items-center justify-center shadow-lg border-2 border-dashed border-[var(--accent)]" style={{ backgroundColor: 'var(--card-bg)' }}>
+                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center border border-[var(--accent)]" style={{ backgroundColor: 'var(--card-bg)' }}>
                       <Gamepad2 className="w-8 h-8 text-[var(--accent)]" />
                     </div>
                     <div className="space-y-1">

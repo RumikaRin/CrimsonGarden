@@ -54,10 +54,10 @@ export const cozyTokens: ThemeTokens = {
   accentRing: 'rgba(220, 20, 60, 0.15)',
 
   pageBg: '#F2EFE7',
-  cardBg: '#FFF5F7',
-  cardBorder: '#DC143C',
-  cardShadow: '4px_4px_0px_#DC143C',
-  cardInteractiveHover: 'hover:bg-[#DC143C]/5',
+  cardBg: '#FFF9FA',
+  cardBorder: 'rgba(220, 20, 60, 0.16)',
+  cardShadow: '0_12px_32px_rgba(73,24,34,0.10)',
+  cardInteractiveHover: 'hover:bg-[#DC143C]/[0.035]',
 
   fg: '#1A1814',
   fgMuted: '#78716C',
@@ -90,9 +90,9 @@ export const neonTokens: ThemeTokens = {
 
   pageBg: '#F4FAF0',
   cardBg: '#FFFFFF',
-  cardBorder: '#224334',
-  cardShadow: '4px_4px_0px_#224334',
-  cardInteractiveHover: 'hover:bg-[#9CE5C1]/20',
+  cardBorder: 'rgba(34, 67, 52, 0.18)',
+  cardShadow: '0_12px_32px_rgba(34,67,52,0.10)',
+  cardInteractiveHover: 'hover:bg-[#9CE5C1]/15',
 
   fg: '#1A1814',
   fgMuted: '#78716C',

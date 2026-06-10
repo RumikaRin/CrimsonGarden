@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { getThemeTokens } from '@/lib/theme';
 
 type CardVariant = 'default' | 'interactive' | 'nested' | 'ghost' | 'medal';
 
@@ -25,7 +24,7 @@ export function AppCard({
 }: AppCardProps) {
 
 
-  const borderColor = variant === 'medal' ? undefined : 'border-[var(--accent)]';
+  const borderColor = variant === 'medal' ? undefined : 'border-[var(--border-default)]';
 
   const shadowClass = 'shadow-[var(--card-shadow)]';
 
@@ -33,13 +32,13 @@ export function AppCard({
     ? 'ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--page-bg)]'
     : '';
 
-  const borderWidth = 'var(--card-border-width)'; const commonBorder = 'bg-white border rounded-2xl shadow-sm';
-  const hoverClasses = 'cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md';
+  const commonBorder = 'bg-[var(--card-bg)] border rounded-2xl';
+  const hoverClasses = 'cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)] active:translate-y-px';
 
   let variantClass = commonBorder;
   if (variant === 'interactive') variantClass = commonBorder + ' ' + hoverClasses;
-  else if (variant === 'nested') variantClass = 'bg-neutral-50 border border-neutral-200 rounded-xl';
-  else if (variant === 'ghost') variantClass = 'bg-white/40 backdrop-blur-sm border border-white/20 rounded-2xl';
+  else if (variant === 'nested') variantClass = 'bg-[var(--surface-soft)] rounded-xl';
+  else if (variant === 'ghost') variantClass = 'bg-transparent border border-[var(--border-default)] rounded-2xl';
   else if (variant === 'medal') {
     if (medalTier === 0) variantClass = 'bg-amber-50 border border-amber-400 rounded-2xl ring-1 ring-amber-400/30';
     else if (medalTier === 1) variantClass = 'bg-slate-50 border border-slate-400 rounded-2xl ring-1 ring-slate-400/30';

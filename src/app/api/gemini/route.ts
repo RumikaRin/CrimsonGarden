@@ -24,8 +24,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Khởi tạo model gemini-2.5-flash (hoặc gemini-2.5-pro nếu cần)
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
 
     // Gọi API chính thức từ Google
     const result = await model.generateContent(prompt);
@@ -33,10 +32,11 @@ export async function POST(request: Request) {
     const reply = response.text();
 
     return NextResponse.json({ reply });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Đã xảy ra lỗi hệ thống khi gọi API Gemini.";
     console.error("Lỗi khi gọi API Gemini:", error);
     return NextResponse.json(
-      { error: error.message || "Đã xảy ra lỗi hệ thống khi gọi API Gemini." },
+      { error: message },
       { status: 500 }
     );
   }

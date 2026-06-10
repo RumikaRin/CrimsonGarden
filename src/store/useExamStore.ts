@@ -27,7 +27,6 @@ interface ExamStore {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signup: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
-  switchRole: () => void;
   recordActivity: () => void;
   updateProfile: (data: Partial<Pick<AuthUser, 'name' | 'bio' | 'phone'>>) => Promise<{ success: boolean; error?: string }>;
 
@@ -134,12 +133,6 @@ export const useExamStore = create<ExamStore>()(
       },
 
       logout: () => set({ currentUser: null }),
-
-      switchRole: () => {
-        const u = get().currentUser;
-        if (!u) return;
-        set({ currentUser: { ...u, role: u.role === 'ADMIN' ? 'STUDENT' : 'ADMIN' } });
-      },
 
       recordActivity: () => {
         const today = new Date().toISOString();
