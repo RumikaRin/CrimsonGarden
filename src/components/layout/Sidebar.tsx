@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useExamStore, computeStreak } from '@/store/useExamStore';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -20,7 +20,7 @@ const navItems = [
 ];
 
 export function Sidebar() {
-  const { theme, setTheme, currentUser, activityDates, logout, switchRole, isExamActive } = useExamStore();
+  const { theme, setTheme, currentUser, activityDates, logout, switchRole, isExamActive, attempts, gameScores } = useExamStore();
   const pathname = usePathname();
   const router = useRouter();
   const isGreenTheme = useIsGreen();
@@ -28,6 +28,22 @@ export function Sidebar() {
   const profileRef = useRef(null);
 
   const streak = computeStreak(activityDates);
+
+  const hasUnsyncedData = attempts.some((a) => !a.synced) || gameScores.some((g) => !g.synced);
+  const [isOnline, setIsOnline] = useState(true);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setIsOnline(window.navigator.onLine);
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
   const isAdminMode = currentUser?.role === 'ADMIN';
 
   const initials = currentUser?.name
@@ -47,7 +63,18 @@ export function Sidebar() {
             <span className="text-[var(--accent)]">Crimson</span>{' '}
             <span className="italic font-normal text-[var(--accent)]">Garden</span>
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
+            <span className="relative flex h-2 w-2" title={!isOnline ? "Hoạt động ngoại tuyến" : hasUnsyncedData ? "Đang đồng bộ..." : "Đã đồng bộ đám mây"}>
+              {!isOnline ? (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
+              ) : hasUnsyncedData ? (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+              ) : null}
+              <span className={cn(
+                "relative inline-flex rounded-full h-2 w-2",
+                !isOnline ? "bg-orange-500" : hasUnsyncedData ? "bg-amber-500" : "bg-green-500"
+              )} />
+            </span>
             <div className={cn('px-2 py-1 rounded-lg text-[9px] font-bold uppercase', 'bg-[var(--accent-light)]/20 text-[var(--accent)]')}>
               {streak > 0 ? streak + ' ngày' : '0 ngày'}
             </div>
@@ -101,6 +128,32 @@ export function Sidebar() {
             );
           })}
         </nav>
+
+        {/* Connection & Sync Status Indicator */}
+        <div className="px-4 py-2 mx-3 mb-2 rounded-xl bg-[var(--accent-light)]/10 border border-[var(--border-default)] flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            {!isOnline ? (
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
+            ) : hasUnsyncedData ? (
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+            ) : null}
+            <span className={cn(
+              "relative inline-flex rounded-full h-2 w-2",
+              !isOnline 
+                ? "bg-orange-500" 
+                : hasUnsyncedData 
+                  ? "bg-amber-500" 
+                  : "bg-green-500"
+            )} />
+          </span>
+          <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+            {!isOnline 
+              ? "Chế độ ngoại tuyến" 
+              : hasUnsyncedData 
+                ? "Đang đồng bộ..." 
+                : "Đồng bộ đám mây"}
+          </span>
+        </div>
 
         {/* Bottom: Theme + Profile */}
         <div className="px-3 py-4 border-t border-[var(--border-default)] space-y-3">

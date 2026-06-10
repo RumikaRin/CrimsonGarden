@@ -6,24 +6,9 @@ import { collectActivityDatesForUser, computeStreak, shouldShowOnLeaderboard } f
 import { cn } from '@/lib/utils';
 import { useIsGreen } from '@/lib/useThemeTokens';
 import { useRouter } from 'next/navigation';
-import { User } from '../types';
 import { Trophy, Medal, BookOpen, Gamepad2, Flame, Star, Award, Crown, Clock, Target, ArrowRight } from 'lucide-react';
 
 type Mode = 'most-exams' | 'streak' | 'leaderboard';
-
-interface LeaderboardEntry {
-  userId: string;
-  name?: string;
-  email?: string;
-  bestScore?: number;
-  bestTime?: number;
-  totalExams?: number;
-  totalCorrect?: number;
-  totalWrong?: number;
-  streak?: number;
-  examCount?: number;
-  gameCount?: number;
-}
 
 export default function Leaderboard() {
   const { attempts, gameScores, exams, currentUser, activityDates } = useExamStore();
@@ -32,9 +17,9 @@ export default function Leaderboard() {
   const router = useRouter();
 
   const [userNameMap, setUserNameMap] = useState<Record<string, string>>({});
-  const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
-  const [streakData, setStreakData] = useState<LeaderboardEntry[]>([]);
-  const [mostExamsData, setMostExamsData] = useState<LeaderboardEntry[]>([]);
+  const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
+  const [streakData, setStreakData] = useState<any[]>([]);
+  const [mostExamsData, setMostExamsData] = useState<any[]>([]);
   const [loadingLB, setLoadingLB] = useState(true);
 
   useEffect(() => {
@@ -45,7 +30,7 @@ export default function Leaderboard() {
     ]).then(([usersData, lbData, statsData]) => {
       if (usersData.success && usersData.users) {
         const map: Record<string, string> = {};
-        usersData.users.forEach((u: User) => {
+        usersData.users.forEach((u: any) => {
           const name = u.name?.trim();
           if (name && name !== 'Học Sinh Đăng Nhập') map[u.id] = name;
           else if (u.email?.includes('@')) map[u.id] = u.email.split('@')[0];
@@ -97,7 +82,7 @@ export default function Leaderboard() {
 
   const displayedStreak = useMemo(() => {
     const merged = new Map<string, { userId: string; name: string; email?: string; streak: number }>();
-    for (const entry of streakData) merged.set(entry.userId, { userId: entry.userId, name: entry.name || '', email: entry.email, streak: entry.streak || 0 });
+    for (const entry of streakData) merged.set(entry.userId, { ...entry });
     const localUserIds = new Set<string>();
     if (currentUser) localUserIds.add(currentUser.id);
     attempts.forEach(a => localUserIds.add(a.userId));
@@ -191,7 +176,7 @@ export default function Leaderboard() {
     ctaLabel,
     ctaPath,
   }: {
-    icon: React.ElementType;
+    icon: any;
     text: string;
     subtext?: string;
     ctaLabel?: string;
@@ -219,7 +204,7 @@ export default function Leaderboard() {
     </div>
   );
 
-  const modeTabs: { key: Mode; icon: React.ElementType; label: string }[] = [
+  const modeTabs: { key: Mode; icon: any; label: string }[] = [
     { key: 'leaderboard', icon: Trophy, label: 'Bảng Xếp Hạng' },
     { key: 'most-exams', icon: BookOpen, label: 'Nhiều Bài Nhất' },
     { key: 'streak', icon: Flame, label: 'Streak Cao Nhất' },
@@ -257,7 +242,7 @@ export default function Leaderboard() {
             />
           ) : (
             <div className="space-y-4">
-              {leaderboardData.map((entry: LeaderboardEntry, i: number) => {
+              {leaderboardData.map((entry: any, i: number) => {
                 const displayName = getDisplayName(entry);
                 const initials = getInitials(displayName);
                 if (i < 3) {
@@ -320,15 +305,15 @@ export default function Leaderboard() {
             />
           ) : (
             <div className="space-y-2.5">
-              {displayedMostExams.map((u: LeaderboardEntry, i: number) => {
+              {displayedMostExams.map((u: any, i: number) => {
                 const displayName = getDisplayName({ name: u.name, userId: u.userId, email: u.email });
                 const initials = getInitials(displayName);
                 return (
                   <RowBase key={u.userId} userId={u.userId} i={i} initials={initials} displayName={displayName}>
                     <div className="flex items-center gap-3 mt-0.5 text-[10px] font-sans text-neutral-500">
-                      <span className="flex items-center gap-1"><BookOpen className="w-3 h-3" /> {u.examCount ?? 0} bài thi</span>
-                      <span className="flex items-center gap-1"><Gamepad2 className="w-3 h-3" /> {u.gameCount ?? 0} game</span>
-                      <span className="flex items-center gap-1"><Star className="w-3 h-3" /> {(u.examCount ?? 0) + (u.gameCount ?? 0)} hoạt động</span>
+                      <span className="flex items-center gap-1"><BookOpen className="w-3 h-3" /> {u.examCount} bài thi</span>
+                      <span className="flex items-center gap-1"><Gamepad2 className="w-3 h-3" /> {u.gameCount} game</span>
+                      <span className="flex items-center gap-1"><Star className="w-3 h-3" /> {u.examCount + u.gameCount} hoạt động</span>
                     </div>
                   </RowBase>
                 );
@@ -349,7 +334,7 @@ export default function Leaderboard() {
             />
           ) : (
             <div className="space-y-2.5">
-              {displayedStreak.map((u: LeaderboardEntry, i: number) => {
+              {displayedStreak.map((u: any, i: number) => {
                 const displayName = getDisplayName({ name: u.name, userId: u.userId, email: u.email });
                 const initials = getInitials(displayName);
                 const streakDays = u.streak ?? 0;

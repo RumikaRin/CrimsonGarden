@@ -16,14 +16,14 @@ export interface SnakeCanvasRefs {
   foodsRef: React.MutableRefObject<FoodItem[]>;
   obstaclesRef: React.MutableRefObject<{ x: number; y: number }[]>;
   lastTickTimeRef: React.MutableRefObject<number>;
+  tickInterval: number;
 }
 
-const GRID_SIZE = 25;
+const GRID_SIZE = 30;
 const COLS = 30;
 const ROWS = 20;
-const TICK_INTERVAL = 220;
 
-export function SnakeCanvasRenderer({ canvasRef, gameState, snakeRef, prevSnakeRef, directionRef, foodsRef, obstaclesRef, lastTickTimeRef }: SnakeCanvasRefs) {
+export function SnakeCanvasRenderer({ canvasRef, gameState, snakeRef, prevSnakeRef, directionRef, foodsRef, obstaclesRef, lastTickTimeRef, tickInterval }: SnakeCanvasRefs) {
   const animRef = useRef<number>(0);
   const { theme } = useExamStore();
   const isGreenTheme = theme === 'neon';
@@ -36,7 +36,8 @@ export function SnakeCanvasRenderer({ canvasRef, gameState, snakeRef, prevSnakeR
 
     const now = performance.now();
     const elapsed = now - lastTickTimeRef.current;
-    const progress = gameState === 'playing' ? Math.min(1, elapsed / TICK_INTERVAL) : 1;
+    const progress = gameState === 'playing' ? Math.min(1, elapsed / tickInterval) : 1;
+
 
     ctx.fillStyle = isGreenTheme ? '#F4FAF0' : '#F2EFE7';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -66,7 +67,7 @@ export function SnakeCanvasRenderer({ canvasRef, gameState, snakeRef, prevSnakeR
     } else {
       draw();
     }
-  }, [gameState]);
+  }, [gameState, isGreenTheme, tickInterval]);
 
   return null;
 }
@@ -123,22 +124,22 @@ function drawFoods(ctx: CanvasRenderingContext2D, foods: FoodItem[], now: number
     ctx.beginPath(); ctx.ellipse(cx + 3, cy - r - 2, 4, 2, 0.3, 0, 2 * Math.PI);
     ctx.fillStyle = '#4a9c59'; ctx.fill();
 
-    ctx.font = 'bold 10px Inter, system-ui';
+    ctx.font = 'bold 14px Inter, system-ui';
     ctx.textAlign = 'center';
-    const textY = food.y === 0 ? food.y * GRID_SIZE + GRID_SIZE + 12 : food.y * GRID_SIZE - 4;
+    const textY = food.y === 0 ? food.y * GRID_SIZE + GRID_SIZE + 14 : food.y * GRID_SIZE - 7;
     const textWidth = ctx.measureText(food.word).width;
 
     ctx.fillStyle = isGreen ? '#FFFFFF' : '#FFF9FA';
     ctx.strokeStyle = isGreen ? '#224334' : '#DC143C';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    if (ctx.roundRect) { ctx.roundRect(cx - textWidth / 2 - 5, textY - 10, textWidth + 10, 14, 4); }
-    else { ctx.rect(cx - textWidth / 2 - 5, textY - 10, textWidth + 10, 14); }
+    if (ctx.roundRect) { ctx.roundRect(cx - textWidth / 2 - 7, textY - 12, textWidth + 14, 18, 5); }
+    else { ctx.rect(cx - textWidth / 2 - 7, textY - 12, textWidth + 14, 18); }
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = isGreen ? '#224334' : '#DC143C';
-    ctx.fillText(food.word, cx, textY + 1);
+    ctx.fillText(food.word, cx, textY + 2);
     ctx.restore();
   });
 }

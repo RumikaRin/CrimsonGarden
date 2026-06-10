@@ -1,27 +1,32 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useExamStore } from '../store/useExamStore';
-import { VocabularyWord } from '../types';
+import { useExamStore } from '@/store/useExamStore';
+import { VocabularyWord } from '@/types';
 import {
   Play, RotateCcw, Trophy, ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
   BookOpen, UploadCloud, Download, Target, Gamepad2, Keyboard,
+  Pause, Volume2, VolumeX, Flame, Zap, Award, Info, Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { getThemeTokens } from '@/lib/theme';
 import { playSound } from '@/lib/snakeSound';
 import { SnakeCanvasRenderer, FoodItem } from './snake/SnakeCanvas';
 import { downloadFile } from '@/lib/download';
 
-const GRID_SIZE = 25;
+const GRID_SIZE = 30;
 const COLS = 30;
 const ROWS = 20;
 const CANVAS_W = COLS * GRID_SIZE;
 const CANVAS_H = ROWS * GRID_SIZE;
-const TICK_INTERVAL = 220;
 const NUM_OBSTACLES = 15;
 
+const DIFFICULTY_SPEEDS = {
+  slow: 320,
+  normal: 220,
+  fast: 130,
+};
 
 const i18n = {
   vi: {
@@ -32,13 +37,16 @@ const i18n = {
     words: 'từ vựng', noWords: 'Chưa có từ nào — bắt đầu chơi để thu thập!',
     hint: '↑↓←→ di chuyển · ăn đúng +20đ · tránh tường',
     hintDetail: 'Chi tiết', guideTitle: 'Hướng dẫn chơi',
-    guide1: 'Ăn đúng từ → +20 điểm', guide2: 'Ăn sai → -10 điểm',
-    guide3: 'Tránh tường, chướng ngại vật và đuôi rắn',
-    guide4: 'Thu thập hết từ trong chủ đề để chiến thắng',
-    importTitle: 'Import từ vựng', importPlaceholder: 'Tên chủ đề (tuù chọn)',
+    guide1: 'Ăn đúng từ tiếng Anh tương ứng với nghĩa tiếng Việt ở trên → +20 điểm.',
+    guide2: 'Ăn sai từ tiếng Anh → bị trừ -10 điểm.',
+    guide3: 'Tránh đâm vào tường, chướng ngại vật màu nâu hoặc đuôi rắn.',
+    guide4: 'Thu thập hết toàn bộ từ trong chủ đề đã chọn để chiến thắng.',
+    importTitle: 'Import từ vựng', importPlaceholder: 'Tên chủ đề (tuỳ chọn)',
     importBtn: 'Chọn file (.csv / .txt)', downloadTemplate: 'Tải file mẫu',
     category: 'Chủ đề', score_: 'Điểm', time: 'Thời gian', sec: 'giây',
     start: 'BẮT ĐẦU', settings: 'Cài đặt',
+    pausedTitle: 'Đã Tạm Dừng', pausedDesc: 'Nhấn Space hoặc nút Tiếp tục để chơi tiếp',
+    resume: 'Tiếp tục',
   },
   en: {
     correct: 'CORRECT', wrong: 'WRONG',
@@ -48,39 +56,45 @@ const i18n = {
     words: 'words', noWords: 'No words yet — start playing to collect!',
     hint: '↑↓←→ move · eat correct +20 · avoid walls',
     hintDetail: 'Details', guideTitle: 'How to Play',
-    guide1: 'Eat correct word → +20 points', guide2: 'Eat wrong → -10 points',
-    guide3: 'Avoid walls, obstacles, and tail',
-    guide4: 'Collect all words to win',
+    guide1: 'Eat the correct English word matching the Vietnamese meaning → +20 pts.',
+    guide2: 'Eating the wrong word → deducts -10 pts.',
+    guide3: 'Avoid hitting walls, brown obstacles, or your own tail.',
+    guide4: 'Collect all words in the selected pack to win.',
     importTitle: 'Import Vocabulary', importPlaceholder: 'Category name (optional)',
     importBtn: 'Choose file (.csv / .txt)', downloadTemplate: 'Download template',
     category: 'Category', score_: 'Score', time: 'Time', sec: 's',
     start: 'START', settings: 'Settings',
+    pausedTitle: 'Paused', pausedDesc: 'Press Space or Resume button to continue playing',
+    resume: 'Resume',
   }
 };
 
 export default function VocabularySnake() {
-  const { vocabularyPacks, addGameScore, addVocabularyPack, currentUser, theme } = useExamStore();
+  const { vocabularyPacks, addGameScore, addVocabularyPack, currentUser, theme, soundEnabled, setSoundEnabled, gameScores } = useExamStore();
   const tokens = getThemeTokens(theme);
   const isGreenTheme = theme === 'neon';
   const selectedCategoryList = Object.keys(vocabularyPacks);
 
   const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [gameState, setGameState] = useState<'idle' | 'playing' | 'gameover' | 'win'>('idle');
+  const [gameState, setGameState] = useState<'idle' | 'playing' | 'paused' | 'gameover' | 'win'>('idle');
   const [score, setScore] = useState(0);
   const [targetWord, setTargetWord] = useState<VocabularyWord | null>(null);
   const [feedback, setFeedback] = useState<{ text: string; color: string } | null>(null);
   const [eatenWords, setEatenWords] = useState<Set<string>>(new Set());
-  const eatenWordsRef = useRef<Set<string>>(new Set());
+  const [difficulty, setDifficulty] = useState<'slow' | 'normal' | 'fast'>('normal');
 
   const [customCategoryName, setCustomCategoryName] = useState('');
   const [vocabError, setVocabError] = useState<string | null>(null);
   const [vocabSuccess, setVocabSuccess] = useState<string | null>(null);
   const [lang, setLang] = useState<'vi' | 'en'>('vi');
+
   const _t = useCallback((key: string): string => {
     try {
       return (i18n as any)[lang][key] || key;
     } catch { return key; }
   }, [lang]);
+
+  const tickInterval = DIFFICULTY_SPEEDS[difficulty];
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const snakeRef = useRef<{ x: number; y: number }[]>([
@@ -100,10 +114,17 @@ export default function VocabularySnake() {
   const totalWordsRef = useRef<number>(0);
   const lastTickTimeRef = useRef<number>(0);
   const selectedCategoryRef = useRef<string>('');
+  const gameStateRef = useRef(gameState);
+  const lastProcessedDirectionRef = useRef<{ x: number; y: number }>({ x: 0, y: -1 });
 
   vocabPacksRef.current = vocabularyPacks;
 
   useEffect(() => { selectedCategoryRef.current = selectedCategory; }, [selectedCategory]);
+  useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
+
+  // Derived Category High Score
+  const categoryScores = gameScores.filter(s => s.vocabularyCategory === selectedCategory);
+  const categoryHighScore = categoryScores.length > 0 ? Math.max(...categoryScores.map(s => s.score)) : 0;
 
   useEffect(() => {
     if (selectedCategoryList.length > 0) {
@@ -120,28 +141,10 @@ export default function VocabularySnake() {
     };
   }, []);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const activeElement = document.activeElement;
-      const isEditing = activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement || activeElement instanceof HTMLSelectElement;
-      if (isEditing || gameState !== 'playing') return;
-      const dirMap: Record<string, { x: number; y: number }> = {
-        ArrowUp: { x: 0, y: -1 }, w: { x: 0, y: -1 }, W: { x: 0, y: -1 },
-        ArrowDown: { x: 0, y: 1 }, s: { x: 0, y: 1 }, S: { x: 0, y: 1 },
-        ArrowLeft: { x: -1, y: 0 }, a: { x: -1, y: 0 }, A: { x: -1, y: 0 },
-        ArrowRight: { x: 1, y: 0 }, d: { x: 1, y: 0 }, D: { x: 1, y: 0 },
-      };
-      if (dirMap[e.key]) { e.preventDefault(); changeDirection(dirMap[e.key]); }
-      if (e.key === ' ' || e.key === 'Escape') { e.preventDefault(); endGame(); }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState]);
-
   const changeDirection = (newDir: { x: number; y: number }) => {
-    const currentDir = directionRef.current;
-    if (newDir.x !== 0 && currentDir.x === -newDir.x) return;
-    if (newDir.y !== 0 && currentDir.y === -newDir.y) return;
+    const lastDir = lastProcessedDirectionRef.current;
+    if (newDir.x !== 0 && lastDir.x === -newDir.x) return;
+    if (newDir.y !== 0 && lastDir.y === -newDir.y) return;
     directionRef.current = newDir;
   };
 
@@ -177,12 +180,13 @@ export default function VocabularySnake() {
   };
 
   const startGame = () => {
-    playSound('start');
+    if (soundEnabled) playSound('start');
     if (typeof document !== 'undefined') (document.activeElement as HTMLElement)?.blur();
 
     snakeRef.current = [{ x: 10, y: 10 }, { x: 10, y: 11 }, { x: 10, y: 12 }];
     prevSnakeRef.current = [{ x: 10, y: 10 }, { x: 10, y: 11 }, { x: 10, y: 12 }];
     directionRef.current = { x: 0, y: -1 };
+    lastProcessedDirectionRef.current = { x: 0, y: -1 };
     scoreRef.current = 0; setScore(0);
     durationRef.current = 0;
     eatenWordsRef.current = new Set(); setEatenWords(new Set());
@@ -206,7 +210,30 @@ export default function VocabularySnake() {
     setupTargets(activeCat);
 
     if (gameIntervalRef.current) clearInterval(gameIntervalRef.current);
-    gameIntervalRef.current = window.setInterval(gameTick, TICK_INTERVAL);
+    gameIntervalRef.current = window.setInterval(gameTick, tickInterval);
+    if (durationIntervalRef.current) clearInterval(durationIntervalRef.current);
+    durationIntervalRef.current = window.setInterval(() => { durationRef.current += 1; }, 1000);
+  };
+
+  const pauseGame = () => {
+    if (gameStateRef.current !== 'playing') return;
+    setGameState('paused');
+    if (gameIntervalRef.current) {
+      clearInterval(gameIntervalRef.current);
+      gameIntervalRef.current = null;
+    }
+    if (durationIntervalRef.current) {
+      clearInterval(durationIntervalRef.current);
+      durationIntervalRef.current = null;
+    }
+  };
+
+  const resumeGame = () => {
+    if (gameStateRef.current !== 'paused') return;
+    setGameState('playing');
+    lastTickTimeRef.current = performance.now();
+    if (gameIntervalRef.current) clearInterval(gameIntervalRef.current);
+    gameIntervalRef.current = window.setInterval(gameTick, tickInterval);
     if (durationIntervalRef.current) clearInterval(durationIntervalRef.current);
     durationIntervalRef.current = window.setInterval(() => { durationRef.current += 1; }, 1000);
   };
@@ -223,6 +250,7 @@ export default function VocabularySnake() {
     const snake = [...snakeRef.current];
     const head = { ...snake[0] };
     const dir = directionRef.current;
+    lastProcessedDirectionRef.current = dir;
     head.x += dir.x; head.y += dir.y;
 
     if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) { endGame(); return; }
@@ -239,9 +267,9 @@ export default function VocabularySnake() {
     if (ateSomething && hitIndex !== -1) {
       const food = foodsRef.current[hitIndex];
       if (food.isCorrect) {
-        playSound('correct');
+        if (soundEnabled) playSound('correct');
         scoreRef.current += 20; setScore(scoreRef.current);
-        triggerFeedback((lang === 'en' ? 'CORRECT!' : 'ĐÚNG!') + ' (+20đ)', '#22C55E'); if (true) { };
+        triggerFeedback((lang === 'en' ? 'CORRECT!' : 'ĐÚNG!') + ' (+20đ)', '#22C55E');
         const newEaten = new Set(eatenWordsRef.current);
         newEaten.add(food.word);
         eatenWordsRef.current = newEaten; setEatenWords(new Set(newEaten));
@@ -250,7 +278,7 @@ export default function VocabularySnake() {
         }
         setupTargets(selectedCategoryRef.current);
       } else {
-        playSound('wrong');
+        if (soundEnabled) playSound('wrong');
         scoreRef.current = Math.max(0, scoreRef.current - 10); setScore(scoreRef.current);
         triggerFeedback((lang === 'en' ? 'WRONG!' : 'SAI!') + ' (-10đ)', '#DC143C');
         snake.pop();
@@ -261,7 +289,7 @@ export default function VocabularySnake() {
   };
 
   const endGame = () => {
-    playSound('gameover');
+    if (soundEnabled) playSound('gameover');
     setGameState('gameover');
     if (gameIntervalRef.current) clearInterval(gameIntervalRef.current);
     if (durationIntervalRef.current) clearInterval(durationIntervalRef.current);
@@ -276,7 +304,7 @@ export default function VocabularySnake() {
   };
 
   const winGame = () => {
-    playSound('win');
+    if (soundEnabled) playSound('win');
     setGameState('win');
     if (gameIntervalRef.current) clearInterval(gameIntervalRef.current);
     if (durationIntervalRef.current) clearInterval(durationIntervalRef.current);
@@ -289,6 +317,47 @@ export default function VocabularySnake() {
       playedAt: new Date().toISOString(),
     });
   };
+
+  // Setup keyboard listeners
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeElement = document.activeElement;
+      const isEditing = activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement || activeElement instanceof HTMLSelectElement;
+      if (isEditing) return;
+
+      if (e.key === ' ' || e.key === 'Escape') {
+        e.preventDefault();
+        if (gameStateRef.current === 'playing') {
+          pauseGame();
+        } else if (gameStateRef.current === 'paused') {
+          resumeGame();
+        } else if (gameStateRef.current === 'idle' || gameStateRef.current === 'gameover' || gameStateRef.current === 'win') {
+          startGame();
+        }
+        return;
+      }
+
+      if (gameStateRef.current !== 'playing') return;
+
+      const dirMap: Record<string, { x: number; y: number }> = {
+        ArrowUp: { x: 0, y: -1 }, w: { x: 0, y: -1 }, W: { x: 0, y: -1 },
+        ArrowDown: { x: 0, y: 1 }, s: { x: 0, y: 1 }, S: { x: 0, y: 1 },
+        ArrowLeft: { x: -1, y: 0 }, a: { x: -1, y: 0 }, A: { x: -1, y: 0 },
+        ArrowRight: { x: 1, y: 0 }, d: { x: 1, y: 0 }, D: { x: 1, y: 0 },
+      };
+
+      if (dirMap[e.key]) {
+        e.preventDefault();
+        changeDirection(dirMap[e.key]);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [difficulty]); // re-run only when difficulty (and thus tick speed) changes to update logic references if needed
+
+  const eatenWordsRef = useRef<Set<string>>(new Set());
+  eatenWordsRef.current = eatenWords;
 
   const handleVocabImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     setVocabError(null); setVocabSuccess(null);
@@ -313,7 +382,7 @@ export default function VocabularySnake() {
             if (eng && vie) words.push({ english: eng, vietnamese: vie });
           }
         }
-        if (words.length === 0) throw new Error("Không tìm thấy cặp _t('words') hợp lệ.");
+        if (words.length === 0) throw new Error("Không tìm thấy cặp từ vựng hợp lệ.");
         addVocabularyPack(nameToUse, words);
         setSelectedCategory(nameToUse);
         setupTargets(nameToUse);
@@ -338,238 +407,428 @@ export default function VocabularySnake() {
   const cardFrame = 'card-layered';
 
   const primaryBtn = cn(
-    'inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-xs font-serif font-bold uppercase tracking-widest text-white transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0',
+    'inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-sans font-bold uppercase tracking-widest text-white transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0 shadow-sm cursor-pointer',
     isGreenTheme ? 'bg-[#224334] hover:bg-[#1A3327]' : 'bg-[#DC143C] hover:bg-[#c91236]',
   );
 
-  const dirBtn = cn('flex items-center justify-center w-12 h-12 rounded-xl border transition-all active:scale-95',
+  const dirBtn = cn('flex items-center justify-center w-12 h-12 rounded-xl border transition-all active:scale-95 shadow-sm',
     isGreenTheme
       ? 'bg-[#F4FAF0] border-[#224334] text-[#224334] hover:bg-[#9CE5C1]/40'
-      : 'bg-[#FFF5F7] border-[#DC143C] text-[#DC143C] hover:bg-[#DC143C]/10',);
+      : 'bg-[#FFF5F7] border-[#DC143C] text-[#DC143C] hover:bg-[#DC143C]/10',
+  );
 
-  const renderPlayButton = () => {
-    if (gameState === 'idle') {
-      return (
-        <button onClick={startGame} className={primaryBtn}>
-          <Play className="w-4 h-4" /> Bắt đầu
-        </button>
-      );
-    }
-    if (gameState === 'gameover') {
-      return (
-        <button onClick={startGame} className={cn(primaryBtn, 'bg-[#1A1814] hover:bg-neutral-800')}>
-          <RotateCcw className="w-4 h-4" /> Chơi lại
-        </button>
-      );
-    }
-    if (gameState === 'win') {
-      return (
-        <button onClick={startGame} className={primaryBtn}>
-          <Trophy className="w-4 h-4" /> Chơi tiếp
-        </button>
-      );
-    }
-    return (
-      <span className={cn(
-        'inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-serif font-bold uppercase tracking-wider',
-        isGreenTheme ? 'bg-[#9CE5C1]/30 text-[#224334]' : 'bg-[#DC143C]/10 text-[#DC143C]',
-      )}>
-        <span className="w-2 h-2 rounded-full bg-current animate-pulse" /> Đang chơi
-      </span>
-    );
+  // Digital format score utility
+  const formatScore = (num: number) => {
+    return String(num).padStart(4, '0');
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <header className="text-center space-y-2">
-        <span className="text-[11px] font-sans font-bold tracking-[0.2em] uppercase" style={{ color: tokens.accent }}>
-          Mini Game
-        </span>
-        <h2 className="text-3xl md:text-4xl font-serif font-bold text-[var(--text-primary)] tracking-tight">
-          Săn Từ Vựng
-        </h2>
-        <p className="text-sm text-[var(--text-secondary)] font-sans max-w-xl mx-auto leading-relaxed">
-          Điều khiển rắn ăn đúng từ tiếng Anh theo nghĩa tiếng Việt. _t('collected') hết từ trong chủ đề để thắng.
-        </p>
-      </header>
-
-      {/* Thanh điều khiển chính */}
-      <div className={cn('rounded-2xl p-4 sm:p-5', cardFrame)}>
-        <div className="flex flex-col lg:flex-row lg:items-end gap-4">
-          <div className="flex-1 min-w-0 space-y-2">
-            <label className="text-[10px] font-serif font-bold uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-1.5">
-              <BookOpen className="w-3.5 h-3.5" /> Chủ đề từ vựng
-            </label>
-            <select
-              value={selectedCategory}
-              disabled={gameState === 'playing'}
-              onChange={(e) => { setSelectedCategory(e.target.value); setupTargets(e.target.value); }}
-              className={cn('w-full text-sm px-3 py-2.5 rounded-xl border outline-none font-sans transition-colors disabled:opacity-60',
-                isGreenTheme
-                  ? 'bg-[#F4FAF0] border-[#224334]/30 text-[#1A1814] focus:border-[#224334]'
-                  : 'bg-white border-[#DC143C]/25 text-[#1A1814] focus:border-[#DC143C]',)}
-            >
-              {selectedCategoryList.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
-            </select>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Game Dashboard Sub-Header */}
+      <div className={cn('rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4', cardFrame)}>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-sans font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full" style={{ backgroundColor: tokens.accentLight, color: tokens.accent }}>
+              Game Học Tập
+            </span>
+            <span className="text-[10px] text-zinc-400 font-medium">Bản cập nhật v2.0</span>
           </div>
-
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-            <div className={cn('flex items-center gap-3 px-4 py-2.5 rounded-xl border min-w-[120px]',
-              isGreenTheme ? 'bg-[#F4FAF0] border-[#224334]/20' : 'bg-white border-[#DC143C]/15',)}>
-              <div>
-                <p className="text-[9px] font-serif font-bold uppercase tracking-wider text-[var(--text-muted)]">Điểm</p>
-                <p className="text-2xl font-serif font-bold leading-none" style={{ color: tokens.accent }}>{score}</p>
-              </div>
-              {gameState !== 'idle' && (
-                <div className="border-l pl-3" style={{ borderColor: isGreenTheme ? '#22433420' : '#DC143C20' }}>
-                  <p className="text-[9px] font-serif font-bold uppercase tracking-wider text-[var(--text-muted)]">Tiến độ</p>
-                  <p className="text-sm font-mono font-bold text-[var(--text-primary)]">{eatenWords.size}/{totalWords}</p>
-                </div>
-              )}
-            </div>
-            {renderPlayButton()}
-          </div>
+          <h2 className="text-2xl sm:text-3xl font-serif font-bold text-[var(--text-primary)] tracking-tight">
+            Săn Từ Vựng
+          </h2>
+          <p className="text-xs text-[var(--text-secondary)] font-sans">
+            Rèn luyện phản xạ nhớ từ vựng tiếng Anh theo phương pháp Gamification
+          </p>
         </div>
 
-        {gameState !== 'idle' && (
-          <div className="mt-4">
-            <div className="flex justify-between text-[10px] font-sans text-[var(--text-muted)] mb-1.5">
-              <span>{eatenWords.size} từ đã thu thập</span>
-              <span>{progressPct}% hoàn thành</span>
-            </div>
-            <div className={cn('h-2 rounded-full overflow-hidden', isGreenTheme ? 'bg-[#224334]/10' : 'bg-[#DC143C]/10')}>
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{ width: `${progressPct}%`, backgroundColor: tokens.accent }}
-              />
-            </div>
+        {/* Digital Stats area */}
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+          {/* Score Counter */}
+          <div className={cn('px-4 py-2.5 rounded-xl border flex flex-col min-w-[100px]',
+            isGreenTheme ? 'bg-[#F4FAF0] border-[#224334]/20' : 'bg-[#FFF5F7] border-[#DC143C]/15',)}>
+            <span className="text-[9px] font-sans font-bold uppercase tracking-wider text-[var(--text-secondary)]">Điểm Số</span>
+            <span className="text-2xl font-mono font-bold leading-none tracking-wider text-[var(--text-primary)]">
+              {formatScore(score)}
+            </span>
           </div>
-        )}
+
+          {/* High Score Pill */}
+          <div className={cn('px-4 py-2.5 rounded-xl border flex flex-col min-w-[100px]',
+            isGreenTheme ? 'bg-[#F4FAF0] border-[#224334]/20' : 'bg-[#FFF5F7] border-[#DC143C]/15',)}>
+            <span className="text-[9px] font-sans font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-1">
+              <Award className="w-3 h-3 text-amber-500" /> Điểm Cao Nhất
+            </span>
+            <span className="text-2xl font-mono font-bold leading-none tracking-wider text-amber-600 dark:text-amber-500">
+              {formatScore(categoryHighScore)}
+            </span>
+          </div>
+
+          {/* Sound settings and Pause control toggles */}
+          <div className="flex items-center gap-1.5 border-l pl-3 border-[var(--border-default)]">
+            <button
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              title={soundEnabled ? 'Tắt âm thanh' : 'Bật âm thanh'}
+              className={cn('p-2.5 rounded-xl border transition-all active:scale-95 cursor-pointer',
+                soundEnabled
+                  ? (isGreenTheme ? 'bg-[#224334]/10 border-[#224334]/30 text-[#224334]' : 'bg-[#DC143C]/10 border-[#DC143C]/30 text-[#DC143C]')
+                  : 'bg-zinc-100 border-zinc-200 text-zinc-400'
+              )}
+            >
+              {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </button>
+
+            {gameState === 'playing' && (
+              <button
+                onClick={pauseGame}
+                className={cn('p-2.5 rounded-xl border transition-all active:scale-95 cursor-pointer',
+                  isGreenTheme ? 'bg-[#224334] text-white border-transparent hover:bg-[#1A3327]' : 'bg-[#DC143C] text-white border-transparent hover:bg-[#c91236]'
+                )}
+              >
+                <Pause className="w-4 h-4" />
+              </button>
+            )}
+
+            {gameState === 'paused' && (
+              <button
+                onClick={resumeGame}
+                className={cn('p-2.5 rounded-xl border transition-all active:scale-95 cursor-pointer',
+                  isGreenTheme ? 'bg-[#224334] text-white border-transparent hover:bg-[#1A3327]' : 'bg-[#DC143C] text-white border-transparent hover:bg-[#c91236]'
+                )}
+              >
+                <Play className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
+      {/* Main Grid Layout */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        {/* Khu vực game — ưu tiên trung tâm */}
-        <div className="xl:col-span-8 space-y-4 order-1">
-          {/* Từ mục tiêu */}
-          <div className={cn('rounded-2xl border px-5 py-4 text-center min-h-[88px] flex flex-col justify-center',
+        {/* Column 1: Cột Trái (Main Stage) */}
+        <div className="xl:col-span-8 space-y-4">
+          {/* Target Word Card (Flashcard style) */}
+          <div className={cn('rounded-2xl border-2 p-5 text-center min-h-[96px] flex flex-col justify-center relative overflow-hidden transition-all duration-300 shadow-inner',
             gameState === 'playing' && targetWord
               ? (isGreenTheme ? 'bg-[#224334] border-[#9CE5C1] text-white' : 'bg-[#1A1814] border-[#DC143C] text-white')
-              : (isGreenTheme ? 'bg-[#F4FAF0] border-[#224334]/30' : 'bg-[#FFF5F7] border-[#DC143C]/25'),
+              : (isGreenTheme ? 'bg-[#FAF9F6] border-[#224334]/30' : 'bg-[#FFF9F6] border-[#DC143C]/25'),
           )}>
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-80" />
+            
             {gameState === 'playing' && targetWord ? (
-              <>
-                <span className="text-[10px] font-serif font-bold uppercase tracking-[0.25em] opacity-70 flex items-center justify-center gap-1.5">
-                  <Target className="w-3 h-3" /> Tìm từ tiếng Anh cho
+              <div className="space-y-1 animate-fade-in">
+                <span className="text-[10px] font-sans font-bold uppercase tracking-[0.25em] opacity-70 flex items-center justify-center gap-1.5">
+                  <Target className="w-3.5 h-3.5 animate-pulse text-amber-400" /> Săn từ tiếng Anh có nghĩa:
                 </span>
-                <p className="text-2xl sm:text-3xl font-serif font-bold mt-1">{targetWord.vietnamese}</p>
-              </>
+                <p className="text-2xl sm:text-3xl font-serif font-extrabold mt-0.5 tracking-wide text-amber-50">
+                  {targetWord.vietnamese}
+                </p>
+              </div>
+            ) : gameState === 'paused' ? (
+              <div className="space-y-1">
+                <span className="text-[10px] font-sans font-bold uppercase tracking-[0.25em] text-amber-500">TRẠNG THÁI</span>
+                <p className="text-2xl font-serif font-bold text-[var(--text-primary)]">Đã Tạm Dừng</p>
+              </div>
             ) : (
-              <p className="text-sm font-sans text-[var(--text-muted)]">
-                {gameState === 'idle' ? 'Chọn chủ đề và nhấn Bắt đầu để chơi' : 'Ván đấu đã kết thúc'}
-              </p>
+              <div className="space-y-1">
+                <span className="text-[10px] font-sans font-bold uppercase tracking-[0.25em] text-zinc-400">HỌC VIỆN THƯ THÁI</span>
+                <p className="text-sm font-sans font-semibold text-[var(--text-muted)]">
+                  {gameState === 'idle' ? 'Vui lòng chọn chủ đề từ vựng & bấm Bắt đầu để chơi' : 'Ván đấu đã kết thúc'}
+                </p>
+              </div>
             )}
           </div>
 
-          {/* Canvas */}
-          <div className="card-layered overflow-hidden mx-auto w-fit">
+          {/* Canvas Wrapper Board */}
+          <div className="relative w-full aspect-[15/10] max-w-[900px] mx-auto rounded-[24px] border-4 bg-white overflow-hidden transition-all duration-300"
+            style={{
+              borderColor: tokens.accent,
+              boxShadow: tokens.cardShadow.replace(/_/g, ' ')
+            }}
+          >
+            {/* The HTML5 Canvas */}
             <canvas
               ref={canvasRef}
               width={CANVAS_W}
               height={CANVAS_H}
-              className="block max-w-full h-auto"
-              style={{ width: '100%', maxWidth: CANVAS_W }}
+              className="block w-full h-full"
             />
-          </div>
-          <SnakeCanvasRenderer
-            canvasRef={canvasRef}
-            gameState={gameState}
-            snakeRef={snakeRef}
-            prevSnakeRef={prevSnakeRef}
-            directionRef={directionRef}
-            foodsRef={foodsRef}
-            obstaclesRef={obstaclesRef}
-            lastTickTimeRef={lastTickTimeRef}
-          />
+            
+            <SnakeCanvasRenderer
+              canvasRef={canvasRef}
+              gameState={gameState}
+              snakeRef={snakeRef}
+              prevSnakeRef={prevSnakeRef}
+              directionRef={directionRef}
+              foodsRef={foodsRef}
+              obstaclesRef={obstaclesRef}
+              lastTickTimeRef={lastTickTimeRef}
+              tickInterval={tickInterval}
+            />
 
-          {/* Điều khiển */}
-          <div className={cn('rounded-2xl p-4', cardFrame)}>
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-2 text-[11px] font-sans text-[var(--text-secondary)]">
-                <Keyboard className="w-4 h-4 shrink-0" style={{ color: tokens.accent }} />
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {[ArrowUp, ArrowDown, ArrowLeft, ArrowRight].map((Icon, i) => (
-                    <kbd key={i} className={cn('px-1.5 py-1 rounded-md border', isGreenTheme ? 'bg-[#F4FAF0] border-[#224334]/25' : 'bg-white border-[#DC143C]/20')}>
-                      <Icon className="w-3 h-3" />
-                    </kbd>
-                  ))}
-                  <span className="text-[var(--text-muted)] mx-0.5">hoặc</span>
-                  <kbd className={cn('px-2 py-1 rounded-md border font-semibold', isGreenTheme ? 'bg-[#F4FAF0] border-[#224334]/25' : 'bg-white border-[#DC143C]/20')}>W A S D</kbd>
-                </div>
-              </div>
+            {/* Overlays inside the Board boundary */}
+            <AnimatePresence>
+              {/* IDLE SCREEN OVERLAY */}
+              {gameState === 'idle' && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 bg-[#F2EFE7]/95 dark:bg-zinc-950/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-30"
+                >
+                  <motion.div
+                    initial={{ scale: 0.9, y: 10 }}
+                    animate={{ scale: 1, y: 0 }}
+                    className="max-w-md space-y-5 flex flex-col items-center"
+                  >
+                    <div className="w-16 h-16 rounded-full flex items-center justify-center shadow-lg border-2 border-dashed border-[var(--accent)]" style={{ backgroundColor: 'var(--card-bg)' }}>
+                      <Gamepad2 className="w-8 h-8 text-[var(--accent)]" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-xl sm:text-2xl font-serif font-bold text-[var(--text-primary)]">
+                        Rắn Săn Từ Vựng
+                      </h3>
+                      <p className="text-xs text-[var(--text-secondary)] font-sans max-w-xs mx-auto leading-relaxed">
+                        Hãy điều khiển chú rắn để săn các từ tiếng Anh chính xác tương ứng với nghĩa tiếng Việt hiển thị ở bảng điều khiển phía trên.
+                      </p>
+                    </div>
 
-              {gameState === 'playing' && (
-                <div className="grid grid-cols-3 gap-1.5 sm:hidden">
-                  <div />
-                  <button type="button" aria-label="Lên" onClick={() => changeDirection({ x: 0, y: -1 })} className={dirBtn}><ArrowUp className="w-5 h-5" /></button>
-                  <div />
-                  <button type="button" aria-label="Trái" onClick={() => changeDirection({ x: -1, y: 0 })} className={dirBtn}><ArrowLeft className="w-5 h-5" /></button>
-                  <button type="button" aria-label="Xuống" onClick={() => changeDirection({ x: 0, y: 1 })} className={dirBtn}><ArrowDown className="w-5 h-5" /></button>
-                  <button type="button" aria-label="Phải" onClick={() => changeDirection({ x: 1, y: 0 })} className={dirBtn}><ArrowRight className="w-5 h-5" /></button>
-                </div>
+                    <button onClick={startGame} className={primaryBtn}>
+                      <Play className="w-4 h-4 fill-current" /> {_t('start')} GAME
+                    </button>
+
+                    <div className="flex items-center gap-1 text-[10px] text-zinc-400 font-sans">
+                      <Keyboard className="w-3.5 h-3.5" />
+                      <span>Sử dụng các phím mũi tên hoặc W, A, S, D để điều khiển</span>
+                    </div>
+                  </motion.div>
+                </motion.div>
               )}
-            </div>
+
+              {/* PAUSED OVERLAY */}
+              {gameState === 'paused' && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center z-30"
+                >
+                  <motion.div
+                    initial={{ scale: 0.9, y: 10 }}
+                    animate={{ scale: 1, y: 0 }}
+                    className="bg-[var(--card-bg)] border-2 rounded-2xl p-6 shadow-xl text-center space-y-4 max-w-xs flex flex-col items-center"
+                    style={{ borderColor: tokens.accent }}
+                  >
+                    <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-amber-600">
+                      <Pause className="w-6 h-6 fill-current animate-pulse" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-lg font-serif font-bold text-[var(--text-primary)]">
+                        {_t('pausedTitle')}
+                      </h4>
+                      <p className="text-xs text-[var(--text-secondary)] font-sans">
+                        {_t('pausedDesc')}
+                      </p>
+                    </div>
+                    <button onClick={resumeGame} className={primaryBtn}>
+                      <Play className="w-3.5 h-3.5 fill-current" /> {_t('resume')}
+                    </button>
+                  </motion.div>
+                </motion.div>
+              )}
+
+              {/* GAME OVER OR VICTORY OVERLAY */}
+              {(gameState === 'gameover' || gameState === 'win') && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center z-30"
+                >
+                  <motion.div
+                    initial={{ scale: 0.9, y: 15 }}
+                    animate={{ scale: 1, y: 0 }}
+                    className={cn('border-2 rounded-2xl p-6 sm:p-8 shadow-2xl text-center space-y-4 max-w-sm w-[90%] mx-auto flex flex-col items-center',
+                      gameState === 'win'
+                        ? 'bg-[#ECFDF5] border-[#A7F3D0] text-[#065F46]'
+                        : isGreenTheme
+                          ? 'bg-[#F4FAF0] border-[#224334]/30 text-[#224334]'
+                          : 'bg-[#FFF5F7] border-[#DC143C]/20 text-[#DC143C]'
+                    )}
+                  >
+                    <div className={cn('w-14 h-14 rounded-full flex items-center justify-center shadow-md',
+                      gameState === 'win'
+                        ? 'bg-emerald-100 text-emerald-600'
+                        : isGreenTheme
+                          ? 'bg-[#224334]/10 text-[#224334]'
+                          : 'bg-red-100 text-red-600'
+                    )}>
+                      {gameState === 'win' ? <Trophy className="w-7 h-7" /> : <Flame className="w-7 h-7" />}
+                    </div>
+
+                    <div className="space-y-1">
+                      <h4 className="text-xl sm:text-2xl font-serif font-bold">
+                        {gameState === 'win' ? _t('win') : _t('gameOver')}
+                      </h4>
+                      <p className="text-xs text-zinc-500 font-sans">
+                        {gameState === 'win'
+                          ? `Chúc mừng bạn đã hoàn thành xuất sắc tất cả ${totalWords} từ vựng!`
+                          : `Rất tiếc, rắn đã va chạm. Bạn đã thu thập được ${eatenWords.size}/${totalWords} từ.`}
+                      </p>
+                    </div>
+
+                    {/* Stats details grid */}
+                    <div className={cn('grid grid-cols-2 gap-3 w-full p-3 rounded-xl border',
+                      isGreenTheme ? 'bg-[#FAF9F6]/80 border-[#224334]/10 text-[#224334]' : 'bg-white/65 border-zinc-200/50 text-[#1A1814]'
+                    )}>
+                      <div className="text-center">
+                        <span className="text-[10px] text-zinc-400 font-sans font-bold uppercase block">Điểm số</span>
+                        <span className="text-lg font-mono font-bold">{score}đ</span>
+                      </div>
+                      <div className="text-center">
+                        <span className="text-[10px] text-zinc-400 font-sans font-bold uppercase block">Thời gian</span>
+                        <span className="text-lg font-mono font-bold">{durationRef.current} giây</span>
+                      </div>
+                    </div>
+
+                    <button onClick={startGame} className={primaryBtn}>
+                      {gameState === 'win' ? <Trophy className="w-4 h-4" /> : <RotateCcw className="w-4 h-4" />}
+                      {gameState === 'win' ? 'CHƠI TIẾP' : 'CHƠI LẠI'}
+                    </button>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
-          <details className={cn('rounded-2xl overflow-hidden group', cardFrame)}>
-            <summary className="px-5 py-4 cursor-pointer list-none flex items-center justify-between text-[11px] font-serif font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-              <span className="flex items-center gap-2"><Gamepad2 className="w-3.5 h-3.5" /> {_t('guideTitle')}</span>
-              <span className="text-[var(--text-muted)] group-open:rotate-180 transition-transform">▼</span>
-            </summary>
-            <ul className="px-5 pb-5 text-xs text-[var(--text-secondary)] font-sans space-y-2 leading-relaxed border-t border-[var(--border-default)] pt-4">
-              <li>{_t('guide1')}</li>
-              <li>{_t('guide2')}</li>
-              <li>{_t('guide3')}</li>
-              <li>{_t('guide4')}</li>
-            </ul>
-          </details>
-        </div>
-
-        {/* Panel phụ */}
-        <div className="xl:col-span-4 space-y-4 order-2">
-          {(gameState === 'gameover' || gameState === 'win') && (
-            <div className={cn('rounded-2xl border p-6 text-center space-y-3 animate-fade-in',
-              gameState === 'win'
-                ? 'bg-[var(--win-bg)] border-[var(--win-border)]'
-                : 'bg-[var(--gameover-bg)] border-[var(--gameover-border)]',
-            )}>
-              <Trophy className={cn('w-10 h-10 mx-auto', gameState === 'win' ? 'text-[var(--success)]' : 'text-[var(--danger)]')} />
-              <h4 className={cn('font-serif font-bold text-xl', gameState === 'win' ? 'text-[var(--win-text)]' : 'text-[var(--gameover-text)]')}>
-                {gameState === 'win' ? _t('win') : _t('gameOver')}
-              </h4>
-              <p className="text-xs font-sans text-[var(--text-secondary)]">
-                {gameState === 'win'
-                  ? <>_t('collected') + ' tất cả' <strong>{totalWords}</strong> _t('words') + '!'</>
-                  : <>Thu thập <strong>{eatenWords.size}/{totalWords}</strong> từ vựng</>}
-              </p>
-              <p className="text-3xl font-serif font-bold" style={{ color: tokens.accent }}>{score} điểm</p>
+          {/* Progress bar inside the main stage (Only when playing/paused) */}
+          {(gameState === 'playing' || gameState === 'paused') && (
+            <div className={cn('p-4 rounded-xl space-y-2', cardFrame)}>
+              <div className="flex justify-between text-[10px] font-sans font-bold text-[var(--text-secondary)]">
+                <span>TIẾN ĐỘ THU THẬP: {eatenWords.size}/{totalWords} từ vựng</span>
+                <span>{progressPct}%</span>
+              </div>
+              <div className="h-3 rounded-full bg-zinc-100 overflow-hidden border border-zinc-200/50 shadow-inner">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progressPct}%` }}
+                  className="h-full rounded-full"
+                  style={{ backgroundColor: tokens.accent }}
+                  transition={{ duration: 0.3 }}
+                />
+              </div>
             </div>
           )}
 
-          <div className={cn('rounded-2xl p-5', cardFrame)}>
-            <h4 className="text-[11px] font-serif font-bold uppercase tracking-widest mb-4 flex items-center gap-2 text-[var(--text-primary)]">
-              <Trophy className="w-3.5 h-3.5" style={{ color: tokens.accent }} /> Từ đã thu thập
+          {/* Mobile controllers d-pad */}
+          {(gameState === 'playing' || gameState === 'paused') && (
+            <div className={cn('rounded-2xl p-4 sm:hidden flex flex-col items-center gap-2', cardFrame)}>
+              <span className="text-[10px] text-zinc-400 font-bold uppercase font-sans tracking-widest">Phím Điều Khiển Ảo</span>
+              <div className="grid grid-cols-3 gap-2">
+                <div />
+                <button type="button" aria-label="Lên" onClick={() => changeDirection({ x: 0, y: -1 })} className={dirBtn}><ArrowUp className="w-5 h-5" /></button>
+                <div />
+                <button type="button" aria-label="Trái" onClick={() => changeDirection({ x: -1, y: 0 })} className={dirBtn}><ArrowLeft className="w-5 h-5" /></button>
+                <button type="button" aria-label="Tạm dừng" onClick={gameState === 'playing' ? pauseGame : resumeGame} className={dirBtn}>
+                  {gameState === 'playing' ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                </button>
+                <button type="button" aria-label="Phải" onClick={() => changeDirection({ x: 1, y: 0 })} className={dirBtn}><ArrowRight className="w-5 h-5" /></button>
+                <div />
+                <button type="button" aria-label="Xuống" onClick={() => changeDirection({ x: 0, y: 1 })} className={dirBtn}><ArrowDown className="w-5 h-5" /></button>
+                <div />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Column 2: Cột Phải (Sidebar Panels) */}
+        <div className="xl:col-span-4 space-y-4">
+          {/* Category Pack Selector */}
+          <div className={cn('p-5 rounded-2xl space-y-3.5', cardFrame)}>
+            <div className="space-y-1">
+              <h3 className="text-sm font-serif font-bold uppercase tracking-wider text-[var(--text-primary)] flex items-center gap-2">
+                <BookOpen className="w-4 h-4" style={{ color: tokens.accent }} /> Chủ Đề Từ Vựng
+              </h3>
+              <p className="text-[11px] text-[var(--text-secondary)] font-sans">
+                Chọn gói từ vựng muốn rèn luyện
+              </p>
+            </div>
+            
+            <div className="relative">
+              <select
+                value={selectedCategory}
+                disabled={gameState === 'playing' || gameState === 'paused'}
+                onChange={(e) => { setSelectedCategory(e.target.value); setupTargets(e.target.value); }}
+                className={cn('w-full text-xs px-3 py-3 rounded-xl border outline-none font-sans font-semibold transition-colors disabled:opacity-60 cursor-pointer shadow-inner',
+                  isGreenTheme
+                    ? 'bg-[#F4FAF0] border-[#224334]/30 text-[#1A1814] focus:border-[#224334]'
+                    : 'bg-white border-[#DC143C]/25 text-[#1A1814] focus:border-[#DC143C]',)}
+              >
+                {selectedCategoryList.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Difficulty Selector */}
+          <div className={cn('p-5 rounded-2xl space-y-3.5', cardFrame)}>
+            <div className="space-y-1">
+              <h3 className="text-sm font-serif font-bold uppercase tracking-wider text-[var(--text-primary)] flex items-center gap-2">
+                <Zap className="w-4 h-4" style={{ color: tokens.accent }} /> Cấu Hình Tốc Độ
+              </h3>
+              <p className="text-[11px] text-[var(--text-secondary)] font-sans">
+                Thay đổi độ khó của trò chơi
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {(['slow', 'normal', 'fast'] as const).map((diff) => {
+                const isActive = difficulty === diff;
+                const labels = { slow: 'Chậm', normal: 'Vừa', fast: 'Nhanh' };
+                const colors = {
+                  slow: isGreenTheme ? 'border-emerald-500 bg-emerald-50/50 text-emerald-800' : 'border-emerald-500 bg-emerald-50/50 text-emerald-800',
+                  normal: isGreenTheme ? 'border-amber-500 bg-amber-50/50 text-amber-800' : 'border-amber-500 bg-amber-50/50 text-amber-800',
+                  fast: isGreenTheme ? 'border-red-500 bg-red-50/50 text-red-800' : 'border-red-500 bg-red-50/50 text-red-800',
+                };
+                
+                return (
+                  <button
+                    key={diff}
+                    type="button"
+                    disabled={gameState === 'playing' || gameState === 'paused'}
+                    onClick={() => setDifficulty(diff)}
+                    className={cn(
+                      'py-2 px-1 text-center rounded-xl border-2 font-sans text-xs font-bold transition-all disabled:opacity-50 cursor-pointer',
+                      isActive
+                        ? `${colors[diff]} scale-[1.02] shadow-sm`
+                        : 'border-transparent bg-zinc-50 hover:bg-zinc-100 text-zinc-500'
+                    )}
+                  >
+                    {labels[diff]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Eaten/Collected Words List */}
+          <div className={cn('p-5 rounded-2xl space-y-3.5', cardFrame)}>
+            <h4 className="text-sm font-serif font-bold uppercase tracking-wider text-[var(--text-primary)] flex items-center gap-2">
+              <Award className="w-4 h-4" style={{ color: tokens.accent }} /> Từ Đã Thu Thập
             </h4>
+            
             {eatenWords.size === 0 ? (
-              <p className="text-xs text-[var(--text-muted)] font-sans">{_t('noWords')}</p>
+              <div className="text-center py-6 border border-dashed border-zinc-200 rounded-xl bg-zinc-50/50">
+                <p className="text-xs text-[var(--text-muted)] font-sans px-2">
+                  {_t('noWords')}
+                </p>
+              </div>
             ) : (
-              <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
+              <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pr-1">
                 {Array.from(eatenWords).sort().map((w) => (
                   <span
                     key={w}
                     className={cn(
-                      'px-2.5 py-1 rounded-lg text-[11px] font-serif font-semibold border',
-                      isGreenTheme ? 'bg-[#9CE5C1]/25 text-[#224334] border-[#224334]/20' : 'bg-[#DC143C]/8 text-[#DC143C] border-[#DC143C]/15',
+                      'px-2.5 py-1 rounded-lg text-[10px] font-sans font-bold border transition-all hover:scale-105 shadow-sm',
+                      isGreenTheme ? 'bg-[#9CE5C1]/20 text-[#224334] border-[#224334]/20' : 'bg-[#DC143C]/8 text-[#DC143C] border-[#DC143C]/15',
                     )}
                   >
                     {w}
@@ -579,37 +838,90 @@ export default function VocabularySnake() {
             )}
           </div>
 
-          <details className={cn('rounded-2xl overflow-hidden group', cardFrame)}>
-            <summary className="px-5 py-4 cursor-pointer list-none flex items-center justify-between text-[11px] font-serif font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-              <span className="flex items-center gap-2"><UploadCloud className="w-3.5 h-3.5" /> {_t('importTitle')}</span>
-              <span className="text-[var(--text-muted)] group-open:rotate-180 transition-transform">▼</span>
-            </summary>
-            <div className="px-5 pb-5 space-y-3 border-t border-[var(--border-default)] pt-4">
+          {/* Rules & Instructions */}
+          <div className={cn('p-5 rounded-2xl space-y-3.5', cardFrame)}>
+            <h4 className="text-sm font-serif font-bold uppercase tracking-wider text-[var(--text-primary)] flex items-center gap-2">
+              <Info className="w-4 h-4" style={{ color: tokens.accent }} /> Hướng dẫn & Luật chơi
+            </h4>
+
+            <ul className="text-xs text-[var(--text-secondary)] font-sans space-y-3.5 leading-relaxed">
+              <li className="flex gap-2 items-start">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                <span>{_t('guide1')}</span>
+              </li>
+              <li className="flex gap-2 items-start">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 shrink-0" />
+                <span>{_t('guide2')}</span>
+              </li>
+              <li className="flex gap-2 items-start">
+                <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 mt-1.5 shrink-0" />
+                <span>{_t('guide3')}</span>
+              </li>
+              <li className="flex gap-2 items-start">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                <span>{_t('guide4')}</span>
+              </li>
+            </ul>
+
+            <div className="border-t pt-3 border-zinc-200/50 flex flex-col gap-1.5">
+              <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-sans">
+                <kbd className="px-1.5 py-0.5 border rounded bg-zinc-50 font-bold font-mono">Space</kbd>
+                <span>Tạm dừng / Chơi tiếp</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-sans">
+                <kbd className="px-1.5 py-0.5 border rounded bg-zinc-50 font-bold font-mono">Escape</kbd>
+                <span>Tạm dừng / Thoát</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Vocabulary Pack Import */}
+          <div className={cn('p-5 rounded-2xl space-y-3.5', cardFrame)}>
+            <div className="space-y-1">
+              <h3 className="text-sm font-serif font-bold uppercase tracking-wider text-[var(--text-primary)] flex items-center gap-2">
+                <UploadCloud className="w-4 h-4" style={{ color: tokens.accent }} /> {_t('importTitle')}
+              </h3>
+              <p className="text-[11px] text-[var(--text-secondary)] font-sans">
+                Thêm danh sách từ vựng riêng từ máy tính (.csv / .txt)
+              </p>
+            </div>
+
+            <div className="space-y-2.5">
               <input
                 type="text"
                 placeholder={_t('importPlaceholder')}
                 value={customCategoryName}
                 onChange={(e) => setCustomCategoryName(e.target.value)}
-                className={cn('w-full text-xs px-3 py-2.5 rounded-xl border outline-none',
-                  isGreenTheme ? 'bg-[#F4FAF0] border-[#224334]/25' : 'bg-white border-[#DC143C]/20',)}
+                disabled={gameState === 'playing' || gameState === 'paused'}
+                className={cn('w-full text-xs px-3 py-2.5 rounded-xl border outline-none font-sans font-medium',
+                  isGreenTheme ? 'bg-[#F4FAF0] border-[#224334]/25 focus:border-[#224334]' : 'bg-white border-[#DC143C]/20 focus:border-[#DC143C]',)}
               />
-              <label className={cn('flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-[11px] font-serif font-bold uppercase tracking-wider cursor-pointer border transition-colors',
+              
+              <label className={cn('flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-[11px] font-sans font-bold uppercase tracking-wider cursor-pointer border transition-colors shadow-sm',
+                gameState === 'playing' || gameState === 'paused' ? 'opacity-50 pointer-events-none' : '',
                 isGreenTheme
                   ? 'border-[#224334]/30 text-[#224334] hover:bg-[#9CE5C1]/20'
                   : 'border-[#DC143C]/25 text-[#DC143C] hover:bg-[#DC143C]/5',)}>
                 <UploadCloud className="w-3.5 h-3.5" /> {_t('importBtn')}
-                <input type="file" accept=".csv,.txt" onChange={handleVocabImport} className="hidden" />
+                <input type="file" accept=".csv,.txt" onChange={handleVocabImport} className="hidden" disabled={gameState === 'playing' || gameState === 'paused'} />
               </label>
-              <button type="button" onClick={downloadVocabTemplate} className="flex items-center justify-center gap-1.5 text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)] font-sans w-full transition-colors">
+
+              <button
+                type="button"
+                onClick={downloadVocabTemplate}
+                className="flex items-center justify-center gap-1.5 text-[10px] text-[var(--text-muted)] hover:text-[var(--text-primary)] font-sans font-bold w-full transition-colors mt-1"
+              >
                 <Download className="w-3 h-3" /> {_t('downloadTemplate')}
               </button>
-              {vocabError && <p className="text-[11px] text-[var(--danger)] font-sans">{vocabError}</p>}
-              {vocabSuccess && <p className="text-[11px] text-[var(--success)] font-sans">{vocabSuccess}</p>}
+
+              {vocabError && <p className="text-[11px] text-red-600 font-sans font-semibold text-center">{vocabError}</p>}
+              {vocabSuccess && <p className="text-[11px] text-emerald-600 font-sans font-semibold text-center">{vocabSuccess}</p>}
             </div>
-          </details>
+          </div>
         </div>
       </div>
 
+      {/* Instant visual scoring feedback overlay */}
       {feedback && (
         <div className="fixed top-[35%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none">
           <motion.div
@@ -617,21 +929,15 @@ export default function VocabularySnake() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -30 }}
             transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-            className={cn('inline-flex items-center gap-3 px-5 py-3 rounded-2xl border',
+            className={cn('inline-flex items-center gap-3 px-5 py-3 rounded-2xl border-2 shadow-lg',
               feedback.color === '#22C55E'
-                ? 'bg-emerald-50 border-emerald-200'
-                : 'bg-red-50 border-red-200')}
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                : 'bg-red-50 border-red-300 text-red-800')}
           >
-            <span className={cn(
-              'text-2xl font-bold font-sans',
-              feedback.color === '#22C55E' ? 'text-emerald-600' : 'text-red-500'
-            )}>
+            <span className="text-2xl font-bold font-mono">
               {feedback.color === '#22C55E' ? _t('plus20') : _t('minus10')}
             </span>
-            <span className={cn(
-              'text-sm font-serif font-semibold',
-              feedback.color === '#22C55E' ? 'text-emerald-700' : 'text-red-600'
-            )}>
+            <span className="text-sm font-serif font-extrabold">
               {feedback.text}
             </span>
           </motion.div>

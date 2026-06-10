@@ -402,7 +402,7 @@ app.post('/api/generate-exam', async (req, res) => {
   try {
     console.log(`[Gemini Engine] Generating exam based on custom parsed metadata: "${fileName}"...`);
 
-    // Promp Gemini to build high-quality Vietnamese/English test containing multiple answers
+    // Prompt Gemini to build high-quality Vietnamese/English test containing multiple answers
     const prompt = `Bạn là một chuyên gia khảo thí và biên soạn đề kiểm tra tiếng Anh hàng đầu.
 Học viên đã tải lên một tài liệu tên là: "${fileName}" (Định dạng: ${fileType}, Kích thước: ${fileSizeKB} KB).
 Hãy biên soạn và tự động thiết kế hoàn chỉnh một đề thi thử trắc nghiệm tiếng Anh tương ứng với nội dung hoặc trình độ ghi trong tên tệp tin này hoặc ngẫu nhiên từ trình độ THPT Quốc Gia (nếu không có thông tin rõ ràng).
@@ -411,7 +411,7 @@ Hãy biên soạn và tự động thiết kế hoàn chỉnh một đề thi th
 - Tiêu đề đề thi sinh động, hấp dẫn bằng tiếng Việt (ví dụ: "Đề Ôn Tập Từ Vựng Hướng nghiệp", "Đề Khảo Sát B2...")
 - Mô tả ngắn đầy chuyên nghiệp giới thiệu chủ đề ôn tập.
 - Thời gian làm bài hợp lý (10 đến 30 phút).
-- 5 câu hỏi tiếng Anh đa dạng mức độ (ngữ pháp, từ vựng, phát âm hoặc câu bị động) tương ứng với trình độ.
+- 5 câu hỏi tiếng Anh có sự phân hóa mức độ rõ ràng (gồm 2 câu Dễ, 2 câu Trung bình, và 1 câu Khó) thuộc các chủ đề như ngữ pháp, từ vựng, phát âm hoặc câu bị động tương ứng với trình độ.
 - Mỗi câu hỏi có 4 lựa chọn (A, B, C, D) với ĐÁP ÁN ĐÚNG DUY NHẤT và GIẢI THÍCH chi tiết vì sao đúng bằng tiếng Việt để học viên học tập.
 
 Hãy xuất kết quả chính xác theo định dạng JSON Schema sau:

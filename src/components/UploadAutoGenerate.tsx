@@ -7,8 +7,9 @@ import { useIsGreen } from '../lib/useThemeTokens';
 import { downloadFile } from '@/lib/download';
 import {
   FileSpreadsheet, FileText, UploadCloud, CheckCircle, AlertCircle,
-  Sparkles, RefreshCw, HelpCircle, Download
+  Sparkles, RefreshCw, HelpCircle, Download, Dices
 } from 'lucide-react';
+import { questionBank } from '../data/questionBank';
 
 interface CSVAnswer {
   content: string;
@@ -48,6 +49,8 @@ export default function UploadAutoGenerate() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [generatedCount, setGeneratedCount] = useState(0);
+  const [numQuestions, setNumQuestions] = useState<number>(5);
+  const [isAutoGenerating, setIsAutoGenerating] = useState(false);
 
   // Client-side parser for Excel (CSV format)
   const parseCSV = (text: string) => {
@@ -325,6 +328,64 @@ export default function UploadAutoGenerate() {
     reader.readAsText(fileObject);
   };
 
+  const handleAutoGenerateRandom = async () => {
+    setIsAutoGenerating(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      // Shuffle and slice questions from questionBank
+      const shuffled = [...questionBank].sort(() => 0.5 - Math.random());
+      const selectedQuestions = shuffled.slice(0, Math.min(numQuestions, shuffled.length));
+
+      // Construct the exam object
+      const parsedExam = {
+        title: `Đề Luyện Tập Ngẫu Nhiên #${Math.floor(1000 + Math.random() * 9000)}`,
+        description: `Đề thi ngẫu nhiên gồm ${selectedQuestions.length} câu hỏi được sinh tự động từ Ngân hàng câu hỏi của hệ thống.`,
+        duration: selectedQuestions.length === 5 ? 10 : selectedQuestions.length === 10 ? 20 : 30,
+        questions: selectedQuestions.map((q) => ({
+          content: q.content,
+          explanation: q.explanation,
+          points: q.points,
+          answers: q.answers.map((a) => ({
+            content: a.content,
+            isCorrect: a.isCorrect
+          }))
+        }))
+      };
+
+      // Save to database via same endpoint
+      const response = await fetch('/api/generate-exam', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: `auto-exam-${Date.now()}`,
+          parsedExam: parsedExam
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Lỗi đồng bộ DB trên server.');
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.exam) {
+        addExam(result.exam);
+        setGeneratedCount(result.exam.questions.length);
+        setSuccessMessage(`Tạo đề tự động thành công: "${result.exam.title}"! Đề thi đã có sẵn trong danh sách luyện tập.`);
+      } else {
+        throw new Error(result.error || 'Lỗi lưu đề thi tự động.');
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Lỗi không xác định khi tạo đề tự động.';
+      setErrorMessage(message);
+    } finally {
+      setIsAutoGenerating(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       {/* Introduction */}
@@ -465,6 +526,53 @@ export default function UploadAutoGenerate() {
 
         {/* Instructive documentation & Quick Sample testing sidebar options */}
         <div className="lg:col-span-5 space-y-6">
+          {/* Card: Auto-Generate Random Exam */}
+          <div className="card-layered p-6 space-y-4">
+            <h4 className="font-serif text-sm font-bold text-neutral-800 flex items-center gap-2">
+              <Dices className="w-4 h-4" style={{ color: accent }} /> Tạo Đề Tự Động (Không AI)
+            </h4>
+            <p className="text-xs text-[#78716C] font-sans leading-relaxed">
+              Tạo đề thi trắc nghiệm ngẫu nhiên từ ngân hàng câu hỏi chuẩn hóa tiếng Anh của hệ thống mà không cần upload file hay dùng AI.
+            </p>
+            <div className="space-y-3">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                Số lượng câu hỏi:
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[5, 10, 15].map((num) => (
+                  <button
+                    key={num}
+                    onClick={() => setNumQuestions(num)}
+                    className={cn(
+                      "py-2 rounded-xl text-xs font-sans font-bold transition-all border cursor-pointer",
+                      numQuestions === num
+                        ? "bg-[var(--accent)] text-white border-[var(--accent)] shadow-sm"
+                        : "bg-white text-[var(--text-primary)] border-[var(--border-default)] hover:bg-[var(--accent-light)]/20"
+                    )}
+                  >
+                    {num} câu
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              disabled={isAutoGenerating}
+              onClick={handleAutoGenerateRandom}
+              className="w-full flex items-center justify-center gap-2 text-white py-3 rounded-xl shadow-sm hover:shadow-md font-sans font-bold transition-all active:scale-98 cursor-pointer text-xs disabled:opacity-50"
+              style={{ backgroundColor: 'var(--accent)' }}
+            >
+              {isAutoGenerating ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" /> Đang tạo đề thi...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" /> Sinh Đề Ngẫu Nhiên
+                </>
+              )}
+            </button>
+          </div>
+
           <div className="card-layered p-6 space-y-4">
             <h4 className="font-serif text-sm font-bold text-neutral-800 flex items-center gap-2">
               <Download className="w-4 h-4" style={{ color: accent }} /> Tải file mẫu
