@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useExamStore } from '@/store/useExamStore';
 import { Eye, EyeOff, GraduationCap, BookOpen, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getThemeTokens } from '@/lib/theme';
 
 interface LoginScreenProps {
   onSuccess?: () => void;
@@ -12,6 +13,8 @@ interface LoginScreenProps {
 export default function LoginScreen({ onSuccess }: LoginScreenProps) {
   const { login, signup, theme } = useExamStore();
   const isGreen = theme === 'neon';
+  const isDark = theme === 'dark';
+  const tokens = getThemeTokens(theme);
 
   const [tab, setTab] = useState<'login' | 'signup'>('login');
   const [name, setName] = useState('');
@@ -21,10 +24,10 @@ export default function LoginScreen({ onSuccess }: LoginScreenProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const accent = isGreen ? '#224334' : '#DC143C';
-  const accentLight = isGreen ? '#9ce5c1' : '#FFC5C5';
-  const bgPage = isGreen ? '#f4faf0' : '#F2EFE7';
-  const cardBg = 'white';
+  const accent = tokens.accent;
+  const accentLight = tokens.accentMuted;
+  const bgPage = tokens.pageBg;
+  const cardBg = tokens.cardBg;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,9 +82,9 @@ export default function LoginScreen({ onSuccess }: LoginScreenProps) {
             className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 shadow-lg"
             style={{ backgroundColor: accent }}
           >
-            <GraduationCap className="w-8 h-8 text-white" />
+            <GraduationCap className="w-8 h-8" style={{ color: tokens.fgInverse }} />
           </div>
-          <h1 className="font-serif text-3xl font-bold" style={{ color: '#1A1814' }}>
+          <h1 className="font-serif text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>
             Crimson <span className="italic font-normal" style={{ color: accent }}>Academy</span>
           </h1>
           <p className="text-[11px] font-sans tracking-[0.25em] uppercase mt-1 text-neutral-500">
@@ -92,7 +95,9 @@ export default function LoginScreen({ onSuccess }: LoginScreenProps) {
         {/* Card */}
         <div
           className={cn('rounded-2xl overflow-hidden',
-            isGreen
+            isDark
+              ? 'border border-white/15 shadow-[0_24px_70px_rgba(0,0,0,0.45)]'
+              : isGreen
               ? 'border-[3px] border-[var(--accent)] shadow-[5px_5px_0px_#224334]'
               : 'border border-neutral-200 shadow-[0_20px_60px_rgba(26,24,20,0.08)]'
           )}
@@ -129,7 +134,7 @@ export default function LoginScreen({ onSuccess }: LoginScreenProps) {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Nguyễn Văn A"
-                  className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm font-sans text-[#1A1814] outline-none transition-all bg-neutral-50 focus:bg-white"
+                  className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm font-sans text-[var(--text-primary)] outline-none transition-all bg-neutral-50 focus:bg-white"
                   style={{ '--tw-ring-color': accent } as React.CSSProperties}
                   onFocus={(e) => (e.target.style.borderColor = accent)}
                   onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')}
@@ -148,7 +153,7 @@ export default function LoginScreen({ onSuccess }: LoginScreenProps) {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="student@crimson.edu.vn"
                 required
-                className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm font-sans text-[#1A1814] outline-none transition-all bg-neutral-50 focus:bg-white"
+                className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm font-sans text-[var(--text-primary)] outline-none transition-all bg-neutral-50 focus:bg-white"
                 onFocus={(e) => (e.target.style.borderColor = accent)}
                 onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')}
               />
@@ -167,7 +172,7 @@ export default function LoginScreen({ onSuccess }: LoginScreenProps) {
                   placeholder="••••••••"
                   required
                   minLength={4}
-                  className="w-full px-4 py-3 pr-12 rounded-xl border border-neutral-200 text-sm font-sans text-[#1A1814] outline-none transition-all bg-neutral-50 focus:bg-white"
+                  className="w-full px-4 py-3 pr-12 rounded-xl border border-neutral-200 text-sm font-sans text-[var(--text-primary)] outline-none transition-all bg-neutral-50 focus:bg-white"
                   onFocus={(e) => (e.target.style.borderColor = accent)}
                   onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')}
                 />
@@ -196,7 +201,7 @@ export default function LoginScreen({ onSuccess }: LoginScreenProps) {
               type="submit"
               disabled={loading}
               className="w-full py-3.5 rounded-xl text-sm font-serif font-bold uppercase tracking-widest transition-all cursor-pointer disabled:opacity-60 active:scale-[0.98] shadow-md hover:shadow-lg mt-2"
-              style={{ backgroundColor: accent, color: 'white' }}
+              style={{ backgroundColor: accent, color: tokens.fgInverse }}
             >
               {loading
                 ? 'Đang xử lý...'
@@ -221,7 +226,7 @@ export default function LoginScreen({ onSuccess }: LoginScreenProps) {
           ].map(({ icon: Icon, label }) => (
             <div key={label} className="text-center p-3 rounded-xl bg-white/60 backdrop-blur-sm border border-white ">
               <Icon className="w-4 h-4 mx-auto mb-1.5" style={{ color: accent }} />
-              <p className="text-[9px] font-sans font-bold text-[var(--text-secondary)] leading-tight">{label}</p>
+              <p className="text-[9px] font-sans font-bold leading-tight text-[#1A1814]">{label}</p>
             </div>
           ))}
         </div>

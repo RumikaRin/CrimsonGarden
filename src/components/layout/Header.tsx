@@ -148,7 +148,7 @@ export function Header({}: HeaderProps) {
                   ? 'bg-[#1A1814] text-[#FAF9F6] border-[#1A1814]'
                   : isGreenTheme
                     ? 'bg-white text-[var(--accent)] border-[var(--accent)] hover:bg-[#FAFDF9]'
-                    : 'bg-white text-[#1A1814]/80 border-[#1A1814]/15 hover:border-[#1A1814]/30'
+                    : 'bg-white text-[var(--text-primary)]/80 border-[#1A1814]/15 hover:border-[#1A1814]/30'
               )}
             >
               <div
@@ -185,7 +185,7 @@ export function Header({}: HeaderProps) {
                         {initials}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-serif font-bold text-sm text-[#1A1814] truncate">{currentUser.name}</p>
+                        <p className="font-serif font-bold text-sm text-[var(--text-primary)] truncate">{currentUser.name}</p>
                         <p className="text-[10px] text-neutral-500 font-sans truncate">{currentUser.email}</p>
                       </div>
                     </div>
@@ -206,7 +206,7 @@ export function Header({}: HeaderProps) {
                             ? 'bg-[#1A1814] text-white'
                             : isGreenTheme
                               ? 'bg-[#f4faf0] text-[var(--accent)] hover:bg-[var(--accent-light)]/30 border border-[var(--accent)]/20'
-                              : 'bg-neutral-100 text-[#1A1814] hover:bg-neutral-200'
+                              : 'bg-neutral-100 text-[var(--text-primary)] hover:bg-neutral-200'
                         )}
                       >
                         <ShieldCheck className="w-3.5 h-3.5" />

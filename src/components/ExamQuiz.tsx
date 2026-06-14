@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useExamStore } from '../store/useExamStore';
 import { Exam, Answer } from '../types';
 import { cn } from '../lib/utils';
 import { useIsGreen } from '../lib/useThemeTokens';
 import {
   Clock, CheckCircle, Play, HelpCircle,
-  ChevronRight, ChevronLeft, Bookmark, Award, Check, X, ListChecks
+  ChevronRight, ChevronLeft, Bookmark, Award, Check, X, ListChecks, LogOut
 } from 'lucide-react';
 import { ExamSettings } from './exam/ExamSettings';
 import { QuestionGrid } from './exam/QuestionGrid';
@@ -16,7 +16,7 @@ import { playSound } from '../lib/snakeSound';
 
 export default function ExamQuiz() {
   const {
-    exams, activeExamId, activeAnswers, currentQuestionIndex, timeRemaining,
+    theme, exams, activeExamId, activeAnswers, currentQuestionIndex, timeRemaining,
     isExamActive, isExamSubmitted, examMode, setExamMode, autoAdvance, setAutoAdvance,
     showExplanation, setShowExplanation, soundEnabled, setSoundEnabled,
     shuffleQuestions, setShuffleQuestions, shuffleAnswers, setShuffleAnswers, timerMode, setTimerMode, shuffledExam,
@@ -34,6 +34,7 @@ export default function ExamQuiz() {
   const [markedQuestions, setMarkedQuestions] = React.useState<Record<string, boolean>>({});
   const [showGrid, setShowGrid] = React.useState(true);
   const [showSettings, setShowSettings] = React.useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
   const gridContainerRef = React.useRef<HTMLDivElement>(null);
 
   const activeExam = shuffledExam || exams.find(e => e.id === activeExamId) || null;
@@ -109,7 +110,7 @@ export default function ExamQuiz() {
       <div className="space-y-8 max-w-5xl mx-auto relative">
         <div className="absolute top-0 right-0 z-10">
           <ExamSettings
-            isGreenTheme={true} examMode={examMode} autoAdvance={autoAdvance}
+            theme={theme} examMode={examMode} autoAdvance={autoAdvance}
             showExplanation={showExplanation} soundEnabled={soundEnabled}
             shuffleQuestions={shuffleQuestions} shuffleAnswers={shuffleAnswers} timerMode={timerMode}
             showSettings={showSettings} onToggleSettings={() => setShowSettings(!showSettings)}
@@ -121,8 +122,8 @@ export default function ExamQuiz() {
         </div>
         <div className="text-center space-y-3 pt-4">
           <span className={cn("text-[11px] font-sans font-bold tracking-[0.2em] uppercase", accentText)}>BẮT ĐẦU ÔN TẬP</span>
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#1A1814] tracking-tight">Chọn Đề Thi</h2>
-          <p className="text-sm text-neutral-500 font-sans max-w-lg mx-auto leading-relaxed">
+          <h2 className="text-3xl md:text-4xl font-serif font-bold text-[var(--text-primary)] tracking-tight">Chọn Đề Thi</h2>
+          <p className="text-sm text-[var(--text-secondary)] font-sans max-w-lg mx-auto leading-relaxed">
             Mỗi đề thi được tự động bóc tách từ tài liệu bạn upload. Hoàn thành bài thi để nhận kết quả chi tiết.
           </p>
         </div>
@@ -138,74 +139,75 @@ export default function ExamQuiz() {
   if (!activeExam) return null;
 
   return (
-    <div className="card-layered p-4 sm:p-6 max-w-6xl mx-auto">
-      {/* Top Bar */}
-      <div className={cn("sticky top-0 z-30 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 mb-6 backdrop-blur-lg border-b",
-        "bg-[var(--accent)] text-white"
-      )}>
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold font-mono shrink-0",
-              "bg-[var(--accent-light)] text-[var(--accent)]"
-            )}>{currentQuestionIndex + 1}</div>
-            <div className="min-w-0">
-              <h3 className="text-sm font-serif font-bold truncate">{activeExam.title}</h3>
-              <p className="text-[10px] opacity-60 font-sans">{answeredCount}/{totalQuestions} đã trả lời</p>
+    <div className="grid grid-cols-1 xl:grid-cols-[240px_minmax(0,1fr)_360px] 2xl:grid-cols-[260px_minmax(0,1fr)_400px] w-full min-h-[100dvh] xl:h-[100dvh] gap-4 2xl:gap-5 bg-[var(--page-bg)] p-2 sm:p-4 text-[var(--text-primary)] overflow-y-auto xl:overflow-hidden">
+
+      {/* Left Column (Info & Settings) */}
+      <aside className="order-2 xl:order-1 flex flex-col gap-3 min-w-0 xl:overflow-y-auto xl:pr-1 custom-scrollbar xl:max-h-full">
+        <div className="bg-[var(--card-bg)] border border-[var(--border-default)] rounded-2xl p-4 shadow-[var(--card-shadow)] flex flex-col gap-4">
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="text-sm font-serif font-bold text-[var(--text-primary)] leading-snug">{activeExam.title}</h3>
+            <div className={cn("px-2 py-1 rounded text-[9px] font-bold uppercase tracking-wider whitespace-nowrap", examMode === 'exam' ? "bg-red-500/10 text-red-500" : "bg-emerald-500/10 text-emerald-500")}>
+              {examMode === 'exam' ? 'Thi thật' : 'Ôn thi'}
             </div>
           </div>
-          <div className="flex items-center gap-3 shrink-0">
-            {!isExamSubmitted && (
-              <>
-                <ExamSettings
-                  isGreenTheme={true} examMode={examMode} autoAdvance={autoAdvance}
-                  showExplanation={showExplanation} soundEnabled={soundEnabled}
-                  shuffleQuestions={shuffleQuestions} shuffleAnswers={shuffleAnswers} timerMode={timerMode}
-                  showSettings={showSettings} onToggleSettings={() => setShowSettings(!showSettings)}
-                  onSetExamMode={setExamMode} onSetAutoAdvance={setAutoAdvance}
-                  onSetShowExplanation={setShowExplanation} onSetSoundEnabled={setSoundEnabled}
-                  onSetShuffleQuestions={setShuffleQuestions} onSetShuffleAnswers={setShuffleAnswers}
-                  onSetTimerMode={setTimerMode}
-                  hidePreExamSettings={true}
-                />
-                <button onClick={() => setShowGrid(!showGrid)}
-                  className={cn("p-2 rounded-lg transition-all hidden lg:flex hover:bg-white/10", showGrid ? "bg-white/10" : "")}
-                  title="Toggle question grid"
-                >
-                  <ListChecks className="w-4 h-4" />
-                </button>
-                <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg border", "border-[var(--accent)]/30 bg-[var(--accent)]/10")}>
-                  <Clock className="w-3.5 h-3.5 animate-pulse" />
-                  <span className={cn("font-mono text-sm font-bold tabular-nums", timeRemaining !== -1 && timeRemaining < 60 ? "text-red-400" : "")}>
-                    {timeRemaining === -1 ? '∞' : formatTime(timeRemaining)}
-                  </span>
-                </div>
-              </>
-            )}
+
+          <div className="bg-[var(--surface-soft)] rounded-xl p-4 flex flex-col items-center justify-center gap-1 border border-[var(--border-default)]">
+            <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-[var(--text-secondary)]">Thời gian làm bài</span>
+            <span className={cn("font-mono text-2xl md:text-3xl font-bold tabular-nums", timeRemaining !== -1 && timeRemaining < 60 ? "text-red-500 animate-pulse" : "text-[var(--accent)]")}>
+              {timeRemaining === -1 ? '∞' : formatTime(timeRemaining)}
+            </span>
+          </div>
+
+          <div className="space-y-3 pt-2 border-t border-[var(--border-default)]">
+            <label className="flex items-center justify-between gap-3 cursor-pointer">
+              <span className="text-xs font-sans font-medium text-[var(--text-primary)]">Tự động chuyển câu</span>
+              <button onClick={() => setAutoAdvance(!autoAdvance)} className={cn("w-8 h-4 rounded-full transition-all relative", autoAdvance ? "bg-[var(--accent)]" : "bg-[var(--surface-soft)] ring-1 ring-inset ring-[var(--border-default)]")}>
+                <div className={cn("absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-all", autoAdvance ? "right-0.5" : "left-0.5")} />
+              </button>
+            </label>
+            <label className="flex items-center justify-between gap-3 cursor-pointer">
+              <span className="text-xs font-sans font-medium text-[var(--text-primary)]">Hiển thị giải thích</span>
+              <button onClick={() => setShowExplanation(!showExplanation)} className={cn("w-8 h-4 rounded-full transition-all relative", showExplanation ? "bg-[var(--accent)]" : "bg-[var(--surface-soft)] ring-1 ring-inset ring-[var(--border-default)]")}>
+                <div className={cn("absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-all", showExplanation ? "right-0.5" : "left-0.5")} />
+              </button>
+            </label>
+            <label className="flex items-center justify-between gap-3 cursor-pointer">
+              <span className="text-xs font-sans font-medium text-[var(--text-primary)]">Âm thanh</span>
+              <button onClick={() => setSoundEnabled(!soundEnabled)} className={cn("w-8 h-4 rounded-full transition-all relative", soundEnabled ? "bg-[var(--accent)]" : "bg-[var(--surface-soft)] ring-1 ring-inset ring-[var(--border-default)]")}>
+                <div className={cn("absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-all", soundEnabled ? "right-0.5" : "left-0.5")} />
+              </button>
+            </label>
+          </div>
+
+          <div className="pt-2 border-t border-[var(--border-default)] flex gap-2">
+            <button onClick={() => setShowExitModal(true)}
+              className="flex-1 px-3 py-2 rounded-xl text-[10px] font-serif font-bold uppercase tracking-wider transition-all bg-[var(--surface-soft)] text-red-500 hover:bg-red-500 hover:text-white border border-[var(--border-default)] hover:border-red-500"
+            >
+              Trở về
+            </button>
             {isExamSubmitted && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/20 text-green-400 border border-green-500/30 text-xs font-bold uppercase tracking-wider">
-                <CheckCircle className="w-4 h-4" /> Đã Nộp
-              </div>
+              <button onClick={() => handleStartExam(activeExam.id)}
+                className="flex-1 px-3 py-2 rounded-xl text-[10px] font-serif font-bold uppercase tracking-wider transition-all bg-[var(--accent)] text-[var(--accent-foreground)] hover:opacity-90 shadow-sm"
+              >
+                Làm lại
+              </button>
             )}
           </div>
         </div>
-        {!isExamSubmitted && (
-          <div className="mt-2 -mb-3 h-1 bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progressPct}%`, backgroundColor: 'var(--accent)' }} />
-          </div>
-        )}
-      </div>
 
-      {/* Content Grid */}
-      <div className={cn("grid gap-6", showGrid ? "lg:grid-cols-12" : "lg:grid-cols-1 max-w-3xl mx-auto")}>
-        <div className={showGrid ? "lg:col-span-8 space-y-5" : "space-y-5"}>
-          {isExamSubmitted && (
-            <ResultSummary
-              isGreenTheme={true} correctCount={summary.correctCount} totalCount={summary.totalCount}
-              percentage={summary.percentage} accentBg={accentBg} accentText={accentText}
-              accentBorder={accentBorder} accentLight={accentLight}
-              onReset={resetExamSession} onRetry={() => handleStartExam(activeExam.id)}
-            />
-          )}
+        {isExamSubmitted && (
+          <ResultSummary
+            isGreenTheme={true} correctCount={summary.correctCount} totalCount={summary.totalCount}
+            percentage={summary.percentage} accentBg={accentBg} accentText={accentText}
+            accentBorder={accentBorder} accentLight={accentLight}
+            onReset={resetExamSession} onRetry={() => handleStartExam(activeExam.id)}
+          />
+        )}
+      </aside>
+
+      {/* Center Column (Question) */}
+      <main className="order-1 xl:order-2 min-w-0 flex flex-col min-h-[560px] xl:min-h-0 relative">
+        <div className="flex-1 overflow-y-auto xl:pr-1 custom-scrollbar">
           <QuestionCard
             activeExam={activeExam} currentQuestionIndex={currentQuestionIndex}
             activeAnswers={activeAnswers} isExamSubmitted={isExamSubmitted}
@@ -218,21 +220,46 @@ export default function ExamQuiz() {
             autoAdvance={autoAdvance} setCurrentQuestionIndex={setCurrentQuestionIndex}
           />
         </div>
-        {showGrid && (
-          <div className="lg:col-span-4">
-            <QuestionGrid
-              activeExam={activeExam} activeAnswers={activeAnswers}
-              currentQuestionIndex={currentQuestionIndex} isExamSubmitted={isExamSubmitted}
-              markedQuestions={markedQuestions} isGreenTheme={true}
-              answeredCount={answeredCount} totalQuestions={totalQuestions}
-              progressPct={progressPct} gridContainerRef={gridContainerRef}
-              onSelectQuestion={setCurrentQuestionIndex}
-              onSubmit={() => submitExam(currentUser?.id)}
-              onResetSession={resetExamSession}
-            />
+      </main>
+
+      {/* Right Column (Question Grid) */}
+      <aside className="order-3 min-w-0 flex flex-col min-h-[620px] xl:h-full xl:min-h-0 bg-[var(--card-bg)] border border-[var(--border-default)] rounded-2xl shadow-[var(--card-shadow)] overflow-hidden">
+        <QuestionGrid
+          activeExam={activeExam} activeAnswers={activeAnswers}
+          currentQuestionIndex={currentQuestionIndex} isExamSubmitted={isExamSubmitted}
+          markedQuestions={markedQuestions} isGreenTheme={true} examMode={examMode}
+          answeredCount={answeredCount} totalQuestions={totalQuestions}
+          progressPct={progressPct} gridContainerRef={gridContainerRef}
+          onSelectQuestion={setCurrentQuestionIndex}
+          onSubmit={() => submitExam(currentUser?.id)}
+          onResetSession={resetExamSession}
+        />
+      </aside>
+
+      {/* Exit Confirmation Modal */}
+      {showExitModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[var(--card-bg)] border-2 border-red-500/30 w-full max-w-sm rounded-2xl p-6 shadow-2xl flex flex-col items-center text-center">
+            <h3 className="text-xl font-serif font-bold text-[var(--text-primary)] mb-2">Xác nhận thoát bài</h3>
+            <p className="text-sm font-sans text-[var(--text-secondary)] mb-6">Bạn có chắc muốn thoát bài thi không? Toàn bộ quá trình làm bài sẽ không được lưu.</p>
+            <div className="flex gap-3 w-full">
+              <button
+                onClick={() => setShowExitModal(false)}
+                className="flex-1 py-2.5 rounded-xl border border-[var(--border-default)] text-[var(--text-primary)] font-semibold text-sm hover:bg-[var(--surface-soft)] transition-colors"
+              >
+                Trở lại bài thi
+              </button>
+              <button
+                onClick={() => { setShowExitModal(false); resetExamSession(); }}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm shadow-sm transition-colors"
+              >
+                Thoát luôn
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -255,19 +282,19 @@ function ExamCard({ exam, accentBg, accentText, accentLight, onStart }: ExamCard
         <div className="space-y-2.5 flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <div className={cn("w-2 h-2 rounded-full", accentBg)} />
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-400">Trắc nghiệm</span>
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--text-secondary)]">Trắc nghiệm</span>
           </div>
-          <h3 className={cn("font-serif text-lg font-bold text-[#1A1814] transition-colors leading-snug line-clamp-2",
+          <h3 className={cn("font-serif text-lg font-bold text-[var(--text-primary)] transition-colors leading-snug line-clamp-2",
             "group-hover:text-[var(--accent)]"
           )}>{exam.title}</h3>
-          <p className="text-xs text-neutral-500 font-sans line-clamp-2 leading-relaxed">{exam.description || 'Đề trắc nghiệm kiểm tra trình độ.'}</p>
+          <p className="text-xs text-[var(--text-secondary)] font-sans line-clamp-2 leading-relaxed">{exam.description || 'Đề trắc nghiệm kiểm tra trình độ.'}</p>
         </div>
         <div className={cn("shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300", accentLight, "group-hover:scale-110 group-hover:shadow-md")}>
           <Play className={cn("w-5 h-5 ml-0.5", accentText)} />
         </div>
       </div>
-      <div className="mt-5 pt-4 border-t border-neutral-100 flex items-center justify-between">
-        <div className="flex gap-4 text-xs font-mono text-neutral-400">
+      <div className="mt-5 pt-4 border-t border-[var(--border-default)] flex items-center justify-between">
+        <div className="flex gap-4 text-xs font-mono text-[var(--text-secondary)]">
           <span className="flex items-center gap-1.5"><HelpCircle className="w-3.5 h-3.5" /> {exam.questions.length} câu</span>
           <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {exam.duration} phút</span>
         </div>
@@ -304,8 +331,8 @@ function QuestionCard({ activeExam, currentQuestionIndex, activeAnswers, isExamS
   if (!q) return null;
 
   return (
-    <div className="bg-[#FAF9F6] border border-neutral-200 rounded-2xl shadow-sm overflow-hidden animate-fade-in">
-      <div className="px-6 pt-6 pb-4 border-b border-neutral-100 flex items-center justify-between gap-3">
+    <div className="bg-[var(--card-bg)] border border-[var(--border-default)] rounded-2xl shadow-[var(--card-shadow)] overflow-hidden animate-fade-in flex-1">
+      <div className="px-6 pt-6 pb-4 border-b border-[var(--border-default)] flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className={cn("w-9 h-9 rounded-xl flex items-center justify-center font-mono font-bold text-sm",
             "bg-[var(--accent-light)] text-[var(--accent)]"
@@ -330,7 +357,7 @@ function QuestionCard({ activeExam, currentQuestionIndex, activeAnswers, isExamS
       </div>
 
       <div className="px-6 py-5">
-        <h4 className="text-[#1A1814] text-base sm:text-lg font-serif font-bold leading-relaxed">{q.content}</h4>
+        <h4 className="text-[var(--text-primary)] text-base sm:text-lg font-serif font-bold leading-relaxed">{q.content}</h4>
       </div>
 
       <div className="px-6 pb-2 space-y-2.5">
@@ -339,24 +366,33 @@ function QuestionCard({ activeExam, currentQuestionIndex, activeAnswers, isExamS
           const qId = q.id;
           const isSelected = activeAnswers[qId] === answer.id;
           const isCorrect = answer.isCorrect;
-          const feedbackOn = !isExamSubmitted && examMode === 'practice' && isSelected && !!activeAnswers[qId];
+          const practiceFeedbackOn = !isExamSubmitted && examMode === 'practice' && !!activeAnswers[qId];
 
-          let optStyle = "border-neutral-200 bg-white hover:border-neutral-400 hover:shadow-sm";
-          let prefixStyle = "bg-neutral-100 text-[var(--text-secondary)]";
+          let optStyle = "border-[var(--border-default)] bg-[var(--card-bg)] hover:border-[var(--accent)] hover:shadow-sm";
+          let prefixStyle = "bg-[var(--surface-soft)] text-[var(--text-secondary)]";
+          let textStyle = "text-[var(--text-primary)]";
 
-          if (feedbackOn) {
-            optStyle = isCorrect ? "border-emerald-500 bg-emerald-50/80 ring-1 ring-emerald-500/30" : "border-red-400 bg-red-50/80 ring-1 ring-red-400/30";
-            prefixStyle = isCorrect ? "bg-emerald-500 text-white" : "bg-red-500 text-white";
-            if (!isSelected && isCorrect) optStyle = "border-emerald-500 bg-emerald-50/80 ring-1 ring-emerald-500/30";
+          if (practiceFeedbackOn) {
+            if (isCorrect) {
+              optStyle = "border-emerald-500 bg-emerald-50/80 ring-1 ring-emerald-500/30";
+              prefixStyle = "bg-emerald-500 text-white";
+              textStyle = "text-[#1A1814]";
+            } else if (isSelected) {
+              optStyle = "border-red-400 bg-red-50/80 ring-1 ring-red-400/30";
+              prefixStyle = "bg-red-500 text-white";
+              textStyle = "text-[#1A1814]";
+            } else {
+              optStyle = "border-[var(--border-default)] bg-[var(--card-bg)] opacity-55";
+            }
           } else if (isExamSubmitted) {
-            if (isCorrect) { optStyle = "border-emerald-500 bg-emerald-50/80 ring-1 ring-emerald-500/30"; prefixStyle = "bg-emerald-500 text-white"; }
-            else if (isSelected && !isCorrect) { optStyle = "bg-[var(--accent-light)] text-[var(--accent)]"; prefixStyle = "bg-[var(--accent)] text-white"; }
+            if (isCorrect) { optStyle = "border-emerald-500 bg-emerald-50/80 ring-1 ring-emerald-500/30"; prefixStyle = "bg-emerald-500 text-white"; textStyle = "text-[#1A1814]"; }
+            else if (isSelected && !isCorrect) { optStyle = "bg-red-50/80 ring-1 ring-red-400/30 text-red-500"; prefixStyle = "bg-red-500 text-white"; textStyle = "text-[#1A1814]"; }
           } else if (isSelected) {
             optStyle = "bg-[var(--accent-light)] text-[var(--accent)]";
             prefixStyle = "bg-[var(--accent)] text-white";
           }
 
-          const isDisabled = isExamSubmitted || (examMode === 'practice' && isSelected && !!activeAnswers[qId]);
+          const isDisabled = isExamSubmitted || practiceFeedbackOn;
           const shortcutKey = oIdx + 1;
 
           return (
@@ -380,10 +416,10 @@ function QuestionCard({ activeExam, currentQuestionIndex, activeAnswers, isExamS
                     </span>
                   )}
                 </span>
-                <span className="text-sm font-sans leading-relaxed text-neutral-800 font-medium">{answer.content}</span>
+                <span className={cn("text-sm font-sans leading-relaxed font-medium", textStyle)}>{answer.content}</span>
               </div>
-              {feedbackOn && isCorrect && <Check className="w-5 h-5 text-emerald-500 shrink-0" />}
-              {feedbackOn && isSelected && !isCorrect && <X className="w-5 h-5 text-red-500 shrink-0" />}
+              {practiceFeedbackOn && isCorrect && <Check className="w-5 h-5 text-emerald-500 shrink-0" />}
+              {practiceFeedbackOn && isSelected && !isCorrect && <X className="w-5 h-5 text-red-500 shrink-0" />}
               {isExamSubmitted && isCorrect && <Check className="w-5 h-5 text-emerald-500 shrink-0" />}
               {isExamSubmitted && isSelected && !isCorrect && <X className={cn("w-5 h-5 shrink-0", accentText)} />}
             </button>
@@ -392,26 +428,26 @@ function QuestionCard({ activeExam, currentQuestionIndex, activeAnswers, isExamS
       </div>
 
       {(isExamSubmitted || (examMode === 'practice' && showExplanation && !!activeAnswers[q.id])) && q.explanation && (
-        <div className="mx-6 mb-4 p-4 rounded-xl bg-amber-50/80 border border-amber-200/60 space-y-1.5">
+        <div className="mx-6 mb-4 p-4 rounded-xl bg-[var(--accent-light)]/10 border border-[var(--accent)]/20 space-y-1.5">
           <span className={cn("text-[10px] font-serif font-bold uppercase tracking-wider", "text-[var(--accent)]")}>Giải thích</span>
           <p className="text-sm text-[var(--text-primary)] font-sans leading-relaxed">{q.explanation}</p>
         </div>
       )}
 
-      <div className="px-6 py-4 border-t border-neutral-100 flex items-center justify-between gap-3">
+      <div className="px-6 py-4 border-t border-[var(--border-default)] flex items-center justify-between gap-3 bg-[var(--surface-soft)]">
         <button disabled={currentQuestionIndex === 0} onClick={onGoPrev}
-          className="flex items-center gap-1.5 border border-neutral-200 hover:bg-neutral-100 disabled:opacity-30 disabled:cursor-not-allowed text-[var(--text-secondary)] px-4 py-2 rounded-xl text-xs font-serif font-bold uppercase tracking-wider cursor-pointer transition-all"
+          className="flex items-center gap-1.5 border border-[var(--border-default)] hover:bg-[var(--surface-soft)] disabled:opacity-30 disabled:cursor-not-allowed text-[var(--text-secondary)] px-4 py-2 rounded-xl text-xs font-serif font-bold uppercase tracking-wider cursor-pointer transition-all"
         ><ChevronLeft className="w-4 h-4" /> Trước</button>
-        <div className="hidden sm:flex items-center gap-1 text-[10px] text-neutral-400 font-sans">
-          <kbd className="px-1.5 py-0.5 bg-neutral-100 rounded text-[10px] font-mono border border-neutral-200">←</kbd>
+        <div className="hidden sm:flex items-center gap-1 text-[10px] text-[var(--text-secondary)] font-sans">
+          <kbd className="px-1.5 py-0.5 bg-[var(--surface-soft)] rounded text-[10px] font-mono border border-[var(--border-default)]">←</kbd>
           <span className="mx-1">/</span>
-          <kbd className="px-1.5 py-0.5 bg-neutral-100 rounded text-[10px] font-mono border border-neutral-200">→</kbd>
+          <kbd className="px-1.5 py-0.5 bg-[var(--surface-soft)] rounded text-[10px] font-mono border border-[var(--border-default)]">→</kbd>
           <span className="ml-1">điều hướng · </span>
-          <kbd className="px-1.5 py-0.5 bg-neutral-100 rounded text-[10px] font-mono border border-neutral-200">1-4</kbd>
+          <kbd className="px-1.5 py-0.5 bg-[var(--surface-soft)] rounded text-[10px] font-mono border border-[var(--border-default)]">1-4</kbd>
           <span className="ml-1">chọn đáp án</span>
         </div>
         <button disabled={currentQuestionIndex === activeExam.questions.length - 1} onClick={onGoNext}
-          className="flex items-center gap-1.5 border border-neutral-200 hover:bg-neutral-100 disabled:opacity-30 disabled:cursor-not-allowed text-[var(--text-secondary)] px-4 py-2 rounded-xl text-xs font-serif font-bold uppercase tracking-wider cursor-pointer transition-all"
+          className="flex items-center gap-1.5 border border-[var(--border-default)] hover:bg-[var(--surface-soft)] disabled:opacity-30 disabled:cursor-not-allowed text-[var(--text-secondary)] px-4 py-2 rounded-xl text-xs font-serif font-bold uppercase tracking-wider cursor-pointer transition-all"
         >Sau <ChevronRight className="w-4 h-4" /></button>
       </div>
     </div>

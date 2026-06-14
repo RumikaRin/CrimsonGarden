@@ -72,7 +72,7 @@ export default function HomePage() {
       <motion.header variants={fadeUp} className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end border-b border-[var(--border-default)] pb-8">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--accent)]">Crimson Academy</p>
-          <h1 className="mt-3 max-w-3xl font-serif text-4xl font-bold tracking-tight text-[#1A1814] sm:text-5xl">
+          <h1 className="mt-3 max-w-3xl font-serif text-4xl font-bold tracking-tight text-[var(--text-primary)] sm:text-5xl">
             Học, chơi và chinh phục bảng xếp hạng.
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
@@ -97,7 +97,7 @@ export default function HomePage() {
           <div key={label} className={cn('p-6 sm:p-7', index > 0 && 'border-t border-[var(--border-default)] sm:border-l sm:border-t-0')}>
             <Icon className="h-5 w-5 text-[var(--accent)]" />
             <p className="mt-7 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">{label}</p>
-            <p className="mt-1 font-mono text-3xl font-bold text-[#1A1814]">{value}<span className="ml-1 text-sm text-[var(--text-secondary)]">{suffix}</span></p>
+            <p className="mt-1 font-mono text-3xl font-bold text-[var(--text-primary)]">{value}<span className="ml-1 text-sm text-[var(--text-secondary)]">{suffix}</span></p>
           </div>
         ))}
       </motion.section>
@@ -106,7 +106,7 @@ export default function HomePage() {
         <div className="mb-4 flex items-end justify-between">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--accent)]">Học và chơi</p>
-            <h2 className="mt-2 font-serif text-2xl font-bold text-[#1A1814]">Chọn hoạt động</h2>
+            <h2 className="mt-2 font-serif text-2xl font-bold text-[var(--text-primary)]">Chọn hoạt động</h2>
           </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -118,7 +118,7 @@ export default function HomePage() {
               className="group min-h-40 rounded-2xl border border-[var(--border-default)] bg-[var(--card-bg)] p-5 text-left transition-all hover:-translate-y-0.5 hover:border-[var(--accent)]/40 hover:shadow-[var(--card-shadow)]"
             >
               <Icon className="h-5 w-5 text-[var(--accent)]" />
-              <span className="mt-10 block font-serif text-lg font-bold text-[#1A1814]">{label}</span>
+              <span className="mt-10 block font-serif text-lg font-bold text-[var(--text-primary)]">{label}</span>
               <span className="mt-1 flex items-center justify-between text-xs text-[var(--text-secondary)]">
                 {note}<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </span>
@@ -131,7 +131,7 @@ export default function HomePage() {
         <div className="mb-4 flex items-end justify-between gap-4">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--accent)]">Kết quả</p>
-            <h2 className="mt-2 font-serif text-2xl font-bold text-[#1A1814]">Hoạt động gần đây</h2>
+            <h2 className="mt-2 font-serif text-2xl font-bold text-[var(--text-primary)]">Hoạt động gần đây</h2>
           </div>
           <p className="text-xs text-[var(--text-secondary)]">{myAttempts.length} bài thi · {myGameScores.length} lượt game</p>
         </div>
@@ -144,7 +144,7 @@ export default function HomePage() {
                 {activity.type === 'exam' ? <GraduationCap className="h-4 w-4" /> : <Gamepad2 className="h-4 w-4" />}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-[#1A1814]">{activity.title}</p>
+                <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{activity.title}</p>
                 <p className="mt-1 text-[10px] text-[var(--text-secondary)]">{new Date(activity.date).toLocaleString('vi-VN')}</p>
               </div>
               <p className="font-mono text-base font-bold text-[var(--accent)]">{activity.result}</p>

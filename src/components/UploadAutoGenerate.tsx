@@ -393,7 +393,7 @@ export default function UploadAutoGenerate() {
         <span className="text-[11px] font-sans font-bold tracking-widest uppercase block mb-1" style={{ color: accent }}>
           BÓC TÁCH KHÔNG GIỚI HẠN CỤC BỘ (OFFLINE-FIRST)
         </span>
-        <h2 className="text-3xl font-serif font-semibold text-[#1A1814] tracking-tight">
+        <h2 className="text-3xl font-serif font-semibold text-[var(--text-primary)] tracking-tight">
           Upload & Tự Động Định Dạng Đề Thi
         </h2>
         <p className="text-sm font-sans text-[var(--text-secondary)] mt-2 leading-relaxed">
@@ -457,7 +457,7 @@ export default function UploadAutoGenerate() {
                   )}
                 </div>
                 <div className="space-y-1.5">
-                  <h4 className="font-serif font-bold text-[#1A1814] max-w-xs mx-auto truncate text-base">
+                  <h4 className="font-serif font-bold text-[var(--text-primary)] max-w-xs mx-auto truncate text-base">
                     {selectedFile.name}
                   </h4>
                   <p className="text-xs text-neutral-500 font-mono">
@@ -483,7 +483,7 @@ export default function UploadAutoGenerate() {
             <button
               disabled={isGenerating}
               onClick={handleGenerateExam}
-              className="w-full flex items-center justify-center gap-2 text-white py-4 rounded-2xl shadow-md hover:shadow-lg font-sans font-bold transition-all active:scale-98 cursor-pointer text-sm disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 text-[var(--accent-foreground)] py-4 rounded-2xl shadow-md hover:shadow-lg font-sans font-bold transition-all active:scale-98 cursor-pointer text-sm disabled:opacity-50"
               style={{ backgroundColor: accent }}
             >
               {isGenerating ? (
@@ -546,8 +546,8 @@ export default function UploadAutoGenerate() {
                     className={cn(
                       "py-2 rounded-xl text-xs font-sans font-bold transition-all border cursor-pointer",
                       numQuestions === num
-                        ? "bg-[var(--accent)] text-white border-[var(--accent)] shadow-sm"
-                        : "bg-white text-[var(--text-primary)] border-[var(--border-default)] hover:bg-[var(--accent-light)]/20"
+                        ? "bg-[var(--accent)] text-[var(--accent-foreground)] border-[var(--accent)] shadow-sm"
+                        : "bg-[var(--card-bg)] text-[var(--text-primary)] border-[var(--border-default)] hover:bg-[var(--accent-light)]/20"
                     )}
                   >
                     {num} câu
@@ -558,7 +558,7 @@ export default function UploadAutoGenerate() {
             <button
               disabled={isAutoGenerating}
               onClick={handleAutoGenerateRandom}
-              className="w-full flex items-center justify-center gap-2 text-white py-3 rounded-xl shadow-sm hover:shadow-md font-sans font-bold transition-all active:scale-98 cursor-pointer text-xs disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 text-[var(--accent-foreground)] py-3 rounded-xl shadow-sm hover:shadow-md font-sans font-bold transition-all active:scale-98 cursor-pointer text-xs disabled:opacity-50"
               style={{ backgroundColor: 'var(--accent)' }}
             >
               {isAutoGenerating ? (

@@ -226,7 +226,7 @@ export default function AdminStatsDashboard() {
           <span className="text-[11px] font-sans font-bold tracking-widest uppercase block mb-1" style={{ color: accent }}>
             QUẢN TRỊ VIÊN ĐÀO TẠO & PHÂN TÍCH
           </span>
-          <h2 className="text-3xl font-serif font-semibold text-[#1A1814] tracking-tight">
+          <h2 className="text-3xl font-serif font-semibold text-[var(--text-primary)] tracking-tight">
             Dashboard Thống Kê & Quản Lý Đề Thi
           </h2>
           <p className="text-sm font-sans text-[var(--text-secondary)] mt-2 leading-relaxed">
@@ -250,7 +250,7 @@ export default function AdminStatsDashboard() {
           </div>
           <div>
             <span className="text-[10px] font-serif font-semibold text-neutral-500 uppercase tracking-wider block">Tổng Học Sinh Active</span>
-            <span className="text-2xl font-serif font-bold text-[#1A1814]">{totalStudents || 1}</span>
+            <span className="text-2xl font-serif font-bold text-[var(--text-primary)]">{totalStudents || 1}</span>
             <span className="text-[10px] font-sans flex items-center gap-1.5 mt-0.5 text-neutral-400">
               <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: accent }}></span> {totalAttempts + totalGames} lượt hoạt động
             </span>
@@ -264,7 +264,7 @@ export default function AdminStatsDashboard() {
           </div>
           <div>
             <span className="text-[10px] font-serif font-semibold text-neutral-500 uppercase tracking-wider block">Ngân Hàng Đề Thi</span>
-            <span className="text-2xl font-serif font-bold text-[#1A1814]">{totalQuizzes} bộ đề</span>
+            <span className="text-2xl font-serif font-bold text-[var(--text-primary)]">{totalQuizzes} bộ đề</span>
             <span className="text-[10px] text-neutral-500 mt-0.5 font-sans block">
               {totalQuestions} câu hỏi
             </span>
@@ -278,7 +278,7 @@ export default function AdminStatsDashboard() {
           </div>
           <div>
             <span className="text-[10px] font-serif font-semibold text-neutral-500 uppercase tracking-wider block">Kỷ lục Snake cao nhất</span>
-            <span className="text-2xl font-serif font-bold text-[#1A1814]">{highestSnake} điểm</span>
+            <span className="text-2xl font-serif font-bold text-[var(--text-primary)]">{highestSnake} điểm</span>
             <span className="text-[10px] font-semibold mt-0.5 font-sans block" style={{ color: accent }}>
               Max: {highestScore}% bài thi
             </span>
@@ -292,7 +292,7 @@ export default function AdminStatsDashboard() {
           </div>
           <div>
             <span className="text-[10px] font-serif font-semibold text-neutral-500 uppercase tracking-wider block">Trung Bình Lớp</span>
-            <span className="text-2xl font-serif font-bold text-[#1A1814]">{avgTestScore}%</span>
+            <span className="text-2xl font-serif font-bold text-[var(--text-primary)]">{avgTestScore}%</span>
             <span className="text-[10px] font-sans flex items-center mt-0.5" style={{ color: avgTestScore >= 50 ? '#16a34a' : '#dc2626' }}>
               {avgTestScore >= 50 ? 'Đạt yêu cầu đào tạo' : 'Cần cải thiện'}
             </span>

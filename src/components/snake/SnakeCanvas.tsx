@@ -27,6 +27,7 @@ export function SnakeCanvasRenderer({ canvasRef, gameState, snakeRef, prevSnakeR
   const animRef = useRef<number>(0);
   const { theme } = useExamStore();
   const isGreenTheme = theme === 'neon';
+  const isDarkTheme = theme === 'dark';
 
   const draw = () => {
     const canvas = canvasRef.current;
@@ -39,12 +40,12 @@ export function SnakeCanvasRenderer({ canvasRef, gameState, snakeRef, prevSnakeR
     const progress = gameState === 'playing' ? Math.min(1, elapsed / tickInterval) : 1;
 
 
-    ctx.fillStyle = isGreenTheme ? '#F4FAF0' : '#F2EFE7';
+    ctx.fillStyle = isDarkTheme ? '#1A1814' : (isGreenTheme ? '#F4FAF0' : '#F2EFE7');
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    drawGrid(ctx, isGreenTheme);
-    drawObstacles(ctx, obstaclesRef.current, isGreenTheme);
-    drawFoods(ctx, foodsRef.current, now, isGreenTheme);
+    drawGrid(ctx, isGreenTheme, isDarkTheme);
+    drawObstacles(ctx, obstaclesRef.current, isGreenTheme, isDarkTheme);
+    drawFoods(ctx, foodsRef.current, now, isGreenTheme, isDarkTheme);
 
     const snake = snakeRef.current;
     const prevSnake = prevSnakeRef.current;
@@ -56,7 +57,7 @@ export function SnakeCanvasRenderer({ canvasRef, gameState, snakeRef, prevSnakeR
       };
     });
 
-    drawSnake(ctx, segPositions, directionRef.current, isGreenTheme);
+    drawSnake(ctx, segPositions, directionRef.current, isGreenTheme, isDarkTheme);
   };
 
   useEffect(() => {
@@ -67,13 +68,13 @@ export function SnakeCanvasRenderer({ canvasRef, gameState, snakeRef, prevSnakeR
     } else {
       draw();
     }
-  }, [gameState, isGreenTheme, tickInterval]);
+  }, [gameState, isGreenTheme, isDarkTheme, tickInterval]);
 
   return null;
 }
 
-function drawGrid(ctx: CanvasRenderingContext2D, isGreen: boolean) {
-  ctx.strokeStyle = isGreen ? 'rgba(34, 67, 52, 0.12)' : 'rgba(220, 20, 60, 0.08)';
+function drawGrid(ctx: CanvasRenderingContext2D, isGreen: boolean, isDark: boolean) {
+  ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.05)' : (isGreen ? 'rgba(34, 67, 52, 0.12)' : 'rgba(220, 20, 60, 0.08)');
   ctx.lineWidth = 1;
   for (let i = 0; i <= COLS; i++) {
     ctx.beginPath(); ctx.moveTo(i * GRID_SIZE, 0); ctx.lineTo(i * GRID_SIZE, ROWS * GRID_SIZE); ctx.stroke();
@@ -83,13 +84,13 @@ function drawGrid(ctx: CanvasRenderingContext2D, isGreen: boolean) {
   }
 }
 
-function drawObstacles(ctx: CanvasRenderingContext2D, obstacles: { x: number; y: number }[], isGreen: boolean) {
+function drawObstacles(ctx: CanvasRenderingContext2D, obstacles: { x: number; y: number }[], isGreen: boolean, isDark: boolean) {
   obstacles.forEach((obs) => {
     const ox = obs.x * GRID_SIZE, oy = obs.y * GRID_SIZE;
     ctx.save();
-    ctx.fillStyle = '#5c4033';
+    ctx.fillStyle = isDark ? '#3E2723' : '#5c4033';
     ctx.fillRect(ox + 1, oy + 1, GRID_SIZE - 2, GRID_SIZE - 2);
-    ctx.strokeStyle = '#8b6914';
+    ctx.strokeStyle = isDark ? '#5D4037' : '#8b6914';
     ctx.lineWidth = 1.5;
     ctx.strokeRect(ox + 1, oy + 1, GRID_SIZE - 2, GRID_SIZE - 2);
     ctx.strokeStyle = 'rgba(139,105,20,0.3)';
@@ -102,7 +103,7 @@ function drawObstacles(ctx: CanvasRenderingContext2D, obstacles: { x: number; y:
   });
 }
 
-function drawFoods(ctx: CanvasRenderingContext2D, foods: FoodItem[], now: number, isGreen: boolean) {
+function drawFoods(ctx: CanvasRenderingContext2D, foods: FoodItem[], now: number, isGreen: boolean, isDark: boolean) {
   foods.forEach((food, fIdx) => {
     const cx = food.x * GRID_SIZE + GRID_SIZE / 2;
     const cy = food.y * GRID_SIZE + GRID_SIZE / 2;
@@ -129,8 +130,8 @@ function drawFoods(ctx: CanvasRenderingContext2D, foods: FoodItem[], now: number
     const textY = food.y === 0 ? food.y * GRID_SIZE + GRID_SIZE + 14 : food.y * GRID_SIZE - 7;
     const textWidth = ctx.measureText(food.word).width;
 
-    ctx.fillStyle = isGreen ? '#FFFFFF' : '#FFF9FA';
-    ctx.strokeStyle = isGreen ? '#224334' : '#DC143C';
+    ctx.fillStyle = isDark ? '#1A1814' : (isGreen ? '#FFFFFF' : '#FFF9FA');
+    ctx.strokeStyle = isDark ? (isGreen ? '#22C55E' : '#EF4444') : (isGreen ? '#224334' : '#DC143C');
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     if (ctx.roundRect) { ctx.roundRect(cx - textWidth / 2 - 7, textY - 12, textWidth + 14, 18, 5); }
@@ -138,13 +139,13 @@ function drawFoods(ctx: CanvasRenderingContext2D, foods: FoodItem[], now: number
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = isGreen ? '#224334' : '#DC143C';
+    ctx.fillStyle = isDark ? '#F9FAFB' : (isGreen ? '#224334' : '#DC143C');
     ctx.fillText(food.word, cx, textY + 2);
     ctx.restore();
   });
 }
 
-function drawSnake(ctx: CanvasRenderingContext2D, segPositions: { x: number; y: number }[], direction: { x: number; y: number }, isGreen: boolean) {
+function drawSnake(ctx: CanvasRenderingContext2D, segPositions: { x: number; y: number }[], direction: { x: number; y: number }, isGreen: boolean, isDark: boolean) {
   if (segPositions.length > 1) {
     ctx.save();
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
@@ -164,8 +165,8 @@ function drawSnake(ctx: CanvasRenderingContext2D, segPositions: { x: number; y: 
     const headR = GRID_SIZE / 2 - 1.5;
     ctx.save();
     ctx.beginPath(); ctx.arc(head.x, head.y, headR, 0, 2 * Math.PI);
-    ctx.fillStyle = isGreen ? '#224334' : '#DC143C'; ctx.fill();
-    ctx.fillStyle = isGreen ? '#9ce5c1' : '#FAF9F6';
+    ctx.fillStyle = isDark ? (isGreen ? '#4ADE80' : '#F87171') : (isGreen ? '#224334' : '#DC143C'); ctx.fill();
+    ctx.fillStyle = isDark ? '#1A1814' : (isGreen ? '#9ce5c1' : '#FAF9F6');
     ctx.beginPath(); ctx.arc(head.x + direction.x * 3 - direction.y * 4, head.y + direction.y * 3 + direction.x * 4, 2.5, 0, 2 * Math.PI); ctx.fill();
     ctx.beginPath(); ctx.arc(head.x + direction.x * 3 + direction.y * 4, head.y + direction.y * 3 - direction.x * 4, 2.5, 0, 2 * Math.PI); ctx.fill();
     ctx.restore();

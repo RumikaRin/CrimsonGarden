@@ -18,8 +18,8 @@ export { computeStreak } from '@/lib/leaderboard';
 
 interface ExamStore {
   // Theme state
-  theme: 'cozy' | 'neon';
-  setTheme: (theme: 'cozy' | 'neon') => void;
+  theme: 'cozy' | 'neon' | 'dark';
+  setTheme: (theme: 'cozy' | 'neon' | 'dark') => void;
 
   // Auth
   currentUser: AuthUser | null;

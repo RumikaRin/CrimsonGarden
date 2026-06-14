@@ -19,14 +19,15 @@ const benefits = [
 export function SplineSceneBasic() {
   const theme = useExamStore((s) => s.theme);
   const isGreenTheme = theme === 'neon';
+  const isDarkTheme = theme === 'dark';
   const router = useRouter();
 
-  const accentText = isGreenTheme ? 'text-[#224334]' : 'text-[#DC143C]';
-  const accentBg = isGreenTheme ? 'bg-[#224334]' : 'bg-[#DC143C]';
-  const dotColor = isGreenTheme ? 'bg-[#79ab8e]' : 'bg-[#DC143C]';
+  const accentText = 'text-[var(--accent)]';
+  const accentBg = 'bg-[var(--accent)] text-[var(--accent-foreground)]';
+  const dotColor = 'bg-[var(--accent)]';
 
   return (
-    <div className="w-full overflow-hidden relative card-layered text-[#1A1814]">
+    <div className="w-full overflow-hidden relative card-layered text-[var(--text-primary)]">
       <CardContent className="p-0">
         <Spotlight
           className={
@@ -46,7 +47,9 @@ export function SplineSceneBasic() {
             <div
               className={cn(
                 'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[10px] font-sans font-bold tracking-wider uppercase w-fit border',
-                isGreenTheme
+                isDarkTheme
+                  ? 'bg-white/5 border-white/15 text-white'
+                  : isGreenTheme
                   ? 'bg-[#224334]/10 border-[#224334]/20 text-[#224334]'
                   : 'bg-[#DC143C]/10 border-[#DC143C]/20 text-[#DC143C]',
               )}
@@ -55,28 +58,28 @@ export function SplineSceneBasic() {
             </div>
 
             <div className="space-y-4">
-              <h1 className="text-4xl sm:text-5xl font-serif font-extrabold tracking-tight leading-[1.1] text-[#1A1814]">
+              <h1 className="text-4xl sm:text-5xl font-serif font-extrabold tracking-tight leading-[1.1] text-[var(--text-primary)]">
                 Ôn Luyện{' '}
                 <span className={cn('italic font-normal', accentText)}>Thông Minh</span>
               </h1>
-              <p className="text-sm font-sans text-[#78716C] leading-relaxed max-w-md">
+              <p className="text-sm font-sans text-[var(--text-secondary)] leading-relaxed max-w-md">
                 Học cùng robot, luyện đề và tham gia các mini game tương tác.
               </p>
             </div>
 
             <ul className="space-y-2.5">
               {benefits.map((item) => (
-                <li key={item} className="flex items-start gap-3 text-sm font-sans text-[#78716C]">
+                <li key={item} className="flex items-start gap-3 text-sm font-sans text-[var(--text-secondary)]">
                   <span className={cn('w-1.5 h-1.5 rounded-full mt-2 shrink-0', dotColor)} />
                   {item}
                 </li>
               ))}
             </ul>
 
-            <div className="border-t border-[#1A1814]/10 pt-5 space-y-3 max-w-sm">
+            <div className="border-t border-[var(--border-default)] pt-5 space-y-3 max-w-sm">
               <div className="space-y-1">
-                <p className="font-serif font-bold text-[#1A1814] text-base">Bắt đầu ôn luyện</p>
-                <p className="text-xs font-sans text-[#78716C]">
+                <p className="font-serif font-bold text-[var(--text-primary)] text-base">Bắt đầu ôn luyện</p>
+                <p className="text-xs font-sans text-[var(--text-secondary)]">
                   Chọn một đề thi hoặc bắt đầu Quiz nhanh đã trộn đề.
                 </p>
               </div>
@@ -84,7 +87,7 @@ export function SplineSceneBasic() {
                 type="button"
                 onClick={() => router.push('/quiz')}
                 className={cn(
-                  'w-full min-h-11 flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-sans font-bold uppercase tracking-wider text-white transition-all cursor-pointer hover:opacity-90 active:scale-[0.98]',
+                  'w-full min-h-11 flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-sans font-bold uppercase tracking-wider transition-all cursor-pointer hover:opacity-90 active:scale-[0.98]',
                   accentBg,
                 )}
               >
@@ -97,12 +100,14 @@ export function SplineSceneBasic() {
           <div
             className={cn(
               'flex-1 relative aspect-square lg:aspect-auto min-h-[320px] lg:min-h-0 bg-radial flex items-center justify-center',
-              isGreenTheme
+              isDarkTheme
+                ? 'from-white/5 via-white/[0.02] to-transparent'
+                : isGreenTheme
                 ? 'from-[#224334]/5 via-[#1A1814]/5 to-transparent'
                 : 'from-[#DC143C]/5 via-[#1A1814]/5 to-transparent',
             )}
           >
-            <div className="absolute inset-4 sm:inset-6 rounded-2xl overflow-hidden border border-[#1A1814]/10 bg-[#FAF9F6]/50 backdrop-blur-sm shadow-xl">
+            <div className="absolute inset-4 sm:inset-6 rounded-2xl overflow-hidden border border-[var(--border-default)] bg-[var(--surface-raised)]/70 backdrop-blur-sm shadow-xl">
               <SplineScene
                 scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
                 className="w-full h-full"

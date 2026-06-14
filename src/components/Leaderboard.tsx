@@ -141,9 +141,9 @@ export default function Leaderboard() {
   const YouBadge = () => <span className={cn("text-[9px] px-2 py-0.5 rounded-full font-sans font-bold uppercase tracking-wider", accentLight, accentText)}>Bạn</span>;
 
   const medals = [
-    { bg: 'bg-amber-50 border-amber-400', ring: 'ring-amber-400/30', circle: 'bg-amber-400 text-white', label: 'Vàng', textColor: 'text-amber-600' },
-    { bg: 'bg-slate-50 border-slate-400', ring: 'ring-slate-400/30', circle: 'bg-slate-300 text-white', label: 'Bạc', textColor: 'text-slate-500' },
-    { bg: 'bg-orange-50 border-orange-400', ring: 'ring-orange-400/30', circle: 'bg-orange-400 text-white', label: 'Đồng', textColor: 'text-orange-600' },
+    { bg: 'bg-amber-50 border-amber-400 dark:bg-amber-950/35 dark:border-amber-600/70', ring: 'ring-amber-400/30', circle: 'bg-amber-400 text-neutral-950', label: 'Vàng', textColor: 'text-amber-600 dark:text-amber-300' },
+    { bg: 'bg-slate-50 border-slate-400 dark:bg-slate-900/70 dark:border-slate-500/70', ring: 'ring-slate-400/30', circle: 'bg-slate-300 text-neutral-950', label: 'Bạc', textColor: 'text-slate-500 dark:text-slate-300' },
+    { bg: 'bg-orange-50 border-orange-400 dark:bg-orange-950/35 dark:border-orange-600/70', ring: 'ring-orange-400/30', circle: 'bg-orange-400 text-neutral-950', label: 'Đồng', textColor: 'text-orange-600 dark:text-orange-300' },
   ];
 
   const RankBadge = ({ rank }: { rank: number }) => {
@@ -154,9 +154,9 @@ export default function Leaderboard() {
   };
 
   function getRowCls(i: number): string {
-    if (i === 0) return 'bg-amber-50 border-amber-300';
-    if (i === 1) return 'bg-slate-50 border-slate-300';
-    if (i === 2) return 'bg-orange-50 border-orange-300';
+    if (i === 0) return 'bg-amber-50 border-amber-300 dark:bg-amber-950/35 dark:border-amber-600/70';
+    if (i === 1) return 'bg-slate-50 border-slate-300 dark:bg-slate-900/70 dark:border-slate-500/70';
+    if (i === 2) return 'bg-orange-50 border-orange-300 dark:bg-orange-950/35 dark:border-orange-600/70';
     return 'bg-[var(--card-bg)] border-[var(--border-default)]';
   }
 
@@ -185,7 +185,7 @@ export default function Leaderboard() {
         <div className={cn("w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0", isMe(userId) ? `${accentBg} text-white` : 'bg-neutral-100 text-[var(--text-secondary)]')}>{initials}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-serif font-bold text-[#1A1814] truncate">{displayName}</p>
+            <p className="text-sm font-serif font-bold text-[var(--text-primary)] truncate">{displayName}</p>
             {isMe(userId) && <YouBadge />}
           </div>
           {children}
@@ -219,7 +219,7 @@ export default function Leaderboard() {
       <div className={cn('w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center', accentLight)}>
         <Icon className={cn('w-7 h-7', accentText)} />
       </div>
-      <p className="font-serif font-bold text-sm text-[#1A1814]">{text}</p>
+      <p className="font-serif font-bold text-sm text-[var(--text-primary)]">{text}</p>
       {subtext && <p className="font-sans text-xs text-[#78716C] mt-2 max-w-xs mx-auto leading-relaxed">{subtext}</p>}
       {ctaLabel && ctaPath && (
         <button
@@ -248,7 +248,7 @@ export default function Leaderboard() {
     <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 lg:p-8 space-y-8">
       <div className="space-y-3 border-b border-[var(--border-default)] pb-7">
         <span className={cn("text-[11px] font-sans font-bold tracking-[0.2em] uppercase", accentText)}>BẢNG XẾP HẠNG</span>
-        <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#1A1814] tracking-tight">Thi Đua Cùng Nhau</h2>
+        <h2 className="text-3xl md:text-4xl font-serif font-bold text-[var(--text-primary)] tracking-tight">Thi Đua Cùng Nhau</h2>
         <p className="text-sm text-neutral-500 font-sans max-w-2xl leading-relaxed">Mỗi điểm bài thi được quy đổi x10; điểm Quiz nhanh và Snake được cộng trực tiếp vào điểm thi đua.</p>
       </div>
 
@@ -323,7 +323,7 @@ export default function Leaderboard() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <h3 className="text-base font-serif font-bold text-[#1A1814] truncate">{displayName}</h3>
+                            <h3 className="text-base font-serif font-bold text-[var(--text-primary)] truncate">{displayName}</h3>
                             {isMe(entry.userId) && <YouBadge />}
                           </div>
                           <div className="flex flex-wrap items-center gap-3 mt-1 text-[11px] font-sans text-[var(--text-secondary)]">
@@ -343,7 +343,7 @@ export default function Leaderboard() {
                           { label: 'Sai', value: entry.totalWrong || 0 },
                           { label: 'Bài thi', value: entry.totalExams || 0 },
                         ].map(s => (
-                          <div key={s.label}><div className="text-sm font-mono font-bold text-[#1A1814]">{s.value}</div><div className="text-[9px] font-sans text-neutral-500">{s.label}</div></div>
+                          <div key={s.label}><div className="text-sm font-mono font-bold text-[var(--text-primary)]">{s.value}</div><div className="text-[9px] font-sans text-neutral-500">{s.label}</div></div>
                         ))}
                       </div>
                     </div>
@@ -430,7 +430,7 @@ export default function Leaderboard() {
           <div className="flex items-center gap-3">
             <Award className={cn("w-6 h-6", accentText)} />
             <div>
-              <p className="text-sm font-serif font-bold text-[#1A1814]">Thành tích cá nhân</p>
+              <p className="text-sm font-serif font-bold text-[var(--text-primary)]">Thành tích cá nhân</p>
               <p className="text-[10px] text-neutral-500 font-sans flex items-center gap-3 mt-0.5 flex-wrap">
                 <span className="flex items-center gap-1"><BookOpen className="w-3 h-3" /> {attempts.filter(a => a.userId === currentUser.id).length} bài thi</span>
                 <span className="flex items-center gap-1"><Gamepad2 className="w-3 h-3" /> {gameScores.filter(g => g.userId === currentUser.id).length} game</span>

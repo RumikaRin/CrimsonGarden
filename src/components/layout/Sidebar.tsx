@@ -22,7 +22,7 @@ const navItems = [
 ];
 
 export function Sidebar() {
-  const { setTheme, currentUser, activityDates, logout, isExamActive, attempts, gameScores } = useExamStore();
+  const { theme, setTheme, currentUser, activityDates, logout, isExamActive, attempts, gameScores } = useExamStore();
   const pathname = usePathname();
   const router = useRouter();
   const isGreenTheme = useIsGreen();
@@ -54,9 +54,7 @@ export function Sidebar() {
       <>
         {/* Mobile header */}
         <div className="md:hidden fixed top-0 left-0 right-0 z-50 px-2 pt-2">
-          <div className={cn('rounded-2xl px-4 h-14 flex items-center justify-between border',
-            isGreenTheme ? 'card-layered' : 'bg-[#FFF5F7] border-[var(--accent)]'
-          )}>
+          <div className="rounded-2xl px-4 h-14 flex items-center justify-between border border-[var(--border-default)] bg-[var(--card-bg)] shadow-sm">
             <span className="font-serif text-lg font-bold">
               <span className="text-[var(--accent)]">Crimson</span>{' '}
               <span className="italic font-normal text-[var(--accent)]">Garden</span>
@@ -71,10 +69,7 @@ export function Sidebar() {
         </div>
 
         {/* Desktop sidebar */}
-        <aside className={cn(
-          'hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-64 z-40 border-r transition-colors duration-300',
-          isGreenTheme ? 'bg-white border-[var(--border-default)]' : 'bg-[#FAF9F6] border-[var(--border-default)]'
-        )}>
+        <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-64 z-40 border-r transition-colors duration-300 bg-[var(--card-bg)] border-[var(--border-default)]">
           <div className="px-6 pt-8 pb-6 border-b border-[var(--border-default)]">
             <button onClick={() => router.push('/')} className="text-left cursor-pointer">
               <span className="font-serif text-2xl tracking-tight font-bold block">
@@ -99,11 +94,11 @@ export function Sidebar() {
                   className={cn(
                     'w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-sans font-medium transition-all text-left',
                     isActive
-                      ? 'bg-[var(--accent)] text-white font-semibold'
+                      ? 'bg-[var(--accent)] text-[var(--accent-foreground)] font-semibold'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--accent-light)]/30'
                   )}
                 >
-                  <Icon className={cn('w-4 h-4 shrink-0', isActive ? 'text-white' : '')} />
+                  <Icon className={cn('w-4 h-4 shrink-0', isActive ? 'text-[var(--accent-foreground)]' : '')} />
                   <span>{label}</span>
                 </motion.button>
               );
@@ -115,26 +110,35 @@ export function Sidebar() {
               <button
                 onClick={() => setTheme('cozy')}
                 className={cn(
-                  'flex-1 px-3 py-1.5 rounded-md text-[10px] font-sans font-bold uppercase tracking-wider transition-all',
-                  !isGreenTheme
-                    ? 'bg-[var(--accent)] text-white shadow-sm'
+                  'flex-1 px-2 py-1.5 rounded-md text-[9px] sm:text-[10px] font-sans font-bold uppercase tracking-wider transition-all',
+                  theme === 'cozy'
+                    ? 'bg-[var(--accent)] text-[var(--accent-foreground)] shadow-sm'
                     : 'text-[var(--text-secondary)] opacity-60 hover:opacity-100'
                 )}
               >Crimson</button>
               <button
                 onClick={() => setTheme('neon')}
                 className={cn(
-                  'flex-1 px-3 py-1.5 rounded-md text-[10px] font-sans font-bold uppercase tracking-wider transition-all',
-                  isGreenTheme
-                    ? 'bg-[var(--accent)] text-white shadow-sm'
+                  'flex-1 px-2 py-1.5 rounded-md text-[9px] sm:text-[10px] font-sans font-bold uppercase tracking-wider transition-all',
+                  theme === 'neon'
+                    ? 'bg-[var(--accent)] text-[var(--accent-foreground)] shadow-sm'
                     : 'text-[var(--text-secondary)] opacity-60 hover:opacity-100'
                 )}
               >Garden</button>
+              <button
+                onClick={() => setTheme('dark')}
+                className={cn(
+                  'flex-1 px-2 py-1.5 rounded-md text-[9px] sm:text-[10px] font-sans font-bold uppercase tracking-wider transition-all',
+                  theme === 'dark'
+                    ? 'bg-[var(--accent)] text-[var(--accent-foreground)] shadow-sm'
+                    : 'text-[var(--text-secondary)] opacity-60 hover:opacity-100'
+                )}
+              >Night</button>
             </div>
 
             <button
               onClick={() => router.push('/login')}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-sans font-bold uppercase tracking-wider bg-[var(--accent)] text-white shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-sans font-bold uppercase tracking-wider bg-[var(--accent)] text-[var(--accent-foreground)] shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
             >
               Đăng nhập / Đăng ký
             </button>
@@ -148,9 +152,7 @@ export function Sidebar() {
     <>
       {/* Mobile header (collapsed sidebar trigger) */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 px-2 pt-2">
-        <div className={cn('rounded-2xl px-4 h-14 flex items-center justify-between border',
-          isGreenTheme ? 'card-layered' : 'bg-[#FFF5F7] border-[var(--accent)]'
-        )}>
+        <div className="rounded-2xl px-4 h-14 flex items-center justify-between border border-[var(--border-default)] bg-[var(--card-bg)] shadow-sm">
           <span className="font-serif text-lg font-bold">
             <span className="text-[var(--accent)]">Crimson</span>{' '}
             <span className="italic font-normal text-[var(--accent)]">Garden</span>
@@ -175,12 +177,7 @@ export function Sidebar() {
       </div>
 
       {/* Desktop sidebar */}
-      <aside className={cn(
-        'hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-64 z-40 border-r transition-colors duration-300',
-        isGreenTheme
-          ? 'bg-white border-[var(--border-default)]'
-          : 'bg-[#FAF9F6] border-[var(--border-default)]'
-      )}>
+      <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-64 z-40 border-r transition-colors duration-300 bg-[var(--card-bg)] border-[var(--border-default)]">
         {/* Logo */}
         <div className="px-6 pt-8 pb-6 border-b border-[var(--border-default)]">
           <button onClick={() => router.push('/')} className="text-left cursor-pointer">
@@ -208,11 +205,11 @@ export function Sidebar() {
                 className={cn(
                   'w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-sans font-medium transition-all text-left',
                   isActive
-                    ? 'bg-[var(--accent)] text-white font-semibold'
+                    ? 'bg-[var(--accent)] text-[var(--accent-foreground)] font-semibold'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--accent-light)]/30'
                 )}
               >
-                <Icon className={cn('w-4 h-4 shrink-0', isActive ? 'text-white' : '')} />
+                <Icon className={cn('w-4 h-4 shrink-0', isActive ? 'text-[var(--accent-foreground)]' : '')} />
                 <span>{label}</span>
                 {path === '/quiz' && isExamActive && (
                   <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-ping ml-auto" />
@@ -232,18 +229,18 @@ export function Sidebar() {
             ) : null}
             <span className={cn(
               "relative inline-flex rounded-full h-2 w-2",
-              !isOnline 
-                ? "bg-orange-500" 
-                : hasUnsyncedData 
-                  ? "bg-amber-500" 
+              !isOnline
+                ? "bg-orange-500"
+                : hasUnsyncedData
+                  ? "bg-amber-500"
                   : "bg-green-500"
             )} />
           </span>
           <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-            {!isOnline 
-              ? "Chế độ ngoại tuyến" 
-              : hasUnsyncedData 
-                ? "Đang đồng bộ..." 
+            {!isOnline
+              ? "Chế độ ngoại tuyến"
+              : hasUnsyncedData
+                ? "Đang đồng bộ..."
                 : "Đồng bộ đám mây"}
           </span>
         </div>
@@ -255,21 +252,30 @@ export function Sidebar() {
             <button
               onClick={() => setTheme('cozy')}
               className={cn(
-                'flex-1 px-3 py-1.5 rounded-md text-[10px] font-sans font-bold uppercase tracking-wider transition-all',
-                !isGreenTheme
-                  ? 'bg-[var(--accent)] text-white shadow-sm'
+                'flex-1 px-2 py-1.5 rounded-md text-[9px] sm:text-[10px] font-sans font-bold uppercase tracking-wider transition-all',
+                theme === 'cozy'
+                  ? 'bg-[var(--accent)] text-[var(--accent-foreground)] shadow-sm'
                   : 'text-[var(--text-secondary)] opacity-60 hover:opacity-100'
               )}
             >Crimson</button>
             <button
               onClick={() => setTheme('neon')}
               className={cn(
-                'flex-1 px-3 py-1.5 rounded-md text-[10px] font-sans font-bold uppercase tracking-wider transition-all',
-                isGreenTheme
-                  ? 'bg-[var(--accent)] text-white shadow-sm'
+                'flex-1 px-2 py-1.5 rounded-md text-[9px] sm:text-[10px] font-sans font-bold uppercase tracking-wider transition-all',
+                theme === 'neon'
+                  ? 'bg-[var(--accent)] text-[var(--accent-foreground)] shadow-sm'
                   : 'text-[var(--text-secondary)] opacity-60 hover:opacity-100'
               )}
             >Garden</button>
+            <button
+              onClick={() => setTheme('dark')}
+              className={cn(
+                'flex-1 px-2 py-1.5 rounded-md text-[9px] sm:text-[10px] font-sans font-bold uppercase tracking-wider transition-all',
+                theme === 'dark'
+                  ? 'bg-[var(--accent)] text-[var(--accent-foreground)] shadow-sm'
+                  : 'text-[var(--text-secondary)] opacity-60 hover:opacity-100'
+              )}
+            >Night</button>
           </div>
 
           {/* Profile */}

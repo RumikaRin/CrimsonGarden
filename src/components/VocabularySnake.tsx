@@ -73,6 +73,7 @@ export default function VocabularySnake() {
   const { vocabularyPacks, addGameScore, addVocabularyPack, currentUser, theme, soundEnabled, setSoundEnabled, gameScores } = useExamStore();
   const tokens = getThemeTokens(theme);
   const isGreenTheme = theme === 'neon';
+  const isDarkTheme = theme === 'dark';
   const selectedCategoryList = Object.keys(vocabularyPacks);
 
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -566,7 +567,7 @@ export default function VocabularySnake() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="absolute inset-0 bg-[#F2EFE7]/96 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-30"
+                  className="absolute inset-0 bg-[var(--page-bg)]/96 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-30"
                 >
                   <motion.div
                     initial={{ scale: 0.9, y: 10 }}
@@ -642,18 +643,22 @@ export default function VocabularySnake() {
                     animate={{ scale: 1, y: 0 }}
                     className={cn('border-2 rounded-2xl p-6 sm:p-8 shadow-2xl text-center space-y-4 max-w-sm w-[90%] mx-auto flex flex-col items-center',
                       gameState === 'win'
-                        ? 'bg-[#ECFDF5] border-[#A7F3D0] text-[#065F46]'
-                        : isGreenTheme
-                          ? 'bg-[#F4FAF0] border-[#224334]/30 text-[#224334]'
-                          : 'bg-[#FFF5F7] border-[#DC143C]/20 text-[#DC143C]'
+                        ? (isDarkTheme ? 'bg-emerald-950/80 border-emerald-900 text-emerald-400' : 'bg-[#ECFDF5] border-[#A7F3D0] text-[#065F46]')
+                        : isDarkTheme
+                          ? 'bg-red-950/80 border-red-900 text-red-400'
+                          : isGreenTheme
+                            ? 'bg-[#F4FAF0] border-[#224334]/30 text-[#224334]'
+                            : 'bg-[#FFF5F7] border-[#DC143C]/20 text-[#DC143C]'
                     )}
                   >
                     <div className={cn('w-14 h-14 rounded-full flex items-center justify-center shadow-md',
                       gameState === 'win'
-                        ? 'bg-emerald-100 text-emerald-600'
-                        : isGreenTheme
-                          ? 'bg-[#224334]/10 text-[#224334]'
-                          : 'bg-red-100 text-red-600'
+                        ? (isDarkTheme ? 'bg-emerald-900/50 text-emerald-400' : 'bg-emerald-100 text-emerald-600')
+                        : isDarkTheme
+                          ? 'bg-red-900/50 text-red-400'
+                          : isGreenTheme
+                            ? 'bg-[#224334]/10 text-[#224334]'
+                            : 'bg-red-100 text-red-600'
                     )}>
                       {gameState === 'win' ? <Trophy className="w-7 h-7" /> : <Flame className="w-7 h-7" />}
                     </div>
@@ -671,7 +676,7 @@ export default function VocabularySnake() {
 
                     {/* Stats details grid */}
                     <div className={cn('grid grid-cols-2 gap-3 w-full p-3 rounded-xl border',
-                      isGreenTheme ? 'bg-[#FAF9F6]/80 border-[#224334]/10 text-[#224334]' : 'bg-white/65 border-zinc-200/50 text-[#1A1814]'
+                      isDarkTheme ? 'bg-black/40 border-white/10 text-[var(--text-primary)]' : (isGreenTheme ? 'bg-[#FAF9F6]/80 border-[#224334]/10 text-[#224334]' : 'bg-white/65 border-zinc-200/50 text-[var(--text-primary)]')
                     )}>
                       <div className="text-center">
                         <span className="text-[10px] text-zinc-400 font-sans font-bold uppercase block">Điểm số</span>
@@ -753,8 +758,8 @@ export default function VocabularySnake() {
                 onChange={(e) => { setSelectedCategory(e.target.value); setupTargets(e.target.value); }}
                 className={cn('w-full text-xs px-3 py-3 rounded-xl border outline-none font-sans font-semibold transition-colors disabled:opacity-60 cursor-pointer shadow-inner',
                   isGreenTheme
-                    ? 'bg-[#F4FAF0] border-[#224334]/30 text-[#1A1814] focus:border-[#224334]'
-                    : 'bg-white border-[#DC143C]/25 text-[#1A1814] focus:border-[#DC143C]',)}
+                    ? 'bg-[#F4FAF0] border-[#224334]/30 text-[var(--text-primary)] focus:border-[#224334]'
+                    : 'bg-white border-[#DC143C]/25 text-[var(--text-primary)] focus:border-[#DC143C]',)}
               >
                 {selectedCategoryList.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
               </select>

@@ -5,11 +5,14 @@ import { useExamStore, AuthUser } from '@/store/useExamStore';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, GraduationCap, BookOpen, Sparkles, ArrowLeft, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getThemeTokens } from '@/lib/theme';
 
 export default function LoginPage() {
   const { login, signup, currentUser, theme } = useExamStore();
   const router = useRouter();
   const isGreen = theme === 'neon';
+  const isDark = theme === 'dark';
+  const tokens = getThemeTokens(theme);
 
   const [tab, setTab] = useState<'login' | 'signup'>('login');
   const [name, setName] = useState('');
@@ -33,9 +36,9 @@ export default function LoginPage() {
     }
   }, [currentUser, router]);
 
-  const accent = isGreen ? '#224334' : '#DC143C';
-  const accentLight = isGreen ? '#9ce5c1' : '#FFC5C5';
-  const bgPage = isGreen ? '#f4faf0' : '#F2EFE7';
+  const accent = tokens.accent;
+  const accentLight = tokens.accentMuted;
+  const bgPage = tokens.pageBg;
 
   const resetForgotState = () => {
     setForgotStep('idle');
@@ -194,9 +197,9 @@ export default function LoginPage() {
             className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 shadow-lg hover:opacity-90 transition-opacity"
             style={{ backgroundColor: accent }}
           >
-            <GraduationCap className="w-8 h-8 text-white" />
+            <GraduationCap className="w-8 h-8" style={{ color: tokens.fgInverse }} />
           </button>
-          <h1 className="font-serif text-3xl font-bold" style={{ color: '#1A1814' }}>
+          <h1 className="font-serif text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>
             Crimson <span className="italic font-normal" style={{ color: accent }}>Academy</span>
           </h1>
           <p className="text-[11px] font-sans tracking-[0.25em] uppercase mt-1 text-neutral-500">
@@ -207,11 +210,13 @@ export default function LoginPage() {
         {/* Card */}
         <div
           className={cn('rounded-2xl overflow-hidden',
-            isGreen
+            isDark
+              ? 'border border-white/15 shadow-[0_24px_70px_rgba(0,0,0,0.45)]'
+              : isGreen
               ? 'border-[3px] border-[var(--accent)] shadow-[5px_5px_0px_#224334]'
               : 'border border-neutral-200 shadow-[0_20px_60px_rgba(26,24,20,0.08)]'
           )}
-          style={{ backgroundColor: 'white' }}
+          style={{ backgroundColor: tokens.cardBg }}
         >
           {/* ───── FORGOT PASSWORD: STEP 1 — Verify Email ───── */}
           {forgotStep === 'email' && (
@@ -226,7 +231,7 @@ export default function LoginPage() {
 
               <div className="text-center py-2">
                 <ShieldCheck className="w-10 h-10 mx-auto mb-2" style={{ color: accent }} />
-                <h2 className="font-serif text-lg font-bold text-[#1A1814]">Quên mật khẩu?</h2>
+                <h2 className="font-serif text-lg font-bold text-[var(--text-primary)]">Quên mật khẩu?</h2>
                 <p className="text-xs text-neutral-500 mt-1 leading-relaxed">
                   Nhập email bạn đã dùng để đăng ký,<br />
                   chúng tôi sẽ xác thực để đặt lại mật khẩu.
@@ -244,7 +249,7 @@ export default function LoginPage() {
                   placeholder="student@crimson.edu.vn"
                   required
                   autoFocus
-                  className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm font-sans text-[#1A1814] outline-none transition-all bg-neutral-50 focus:bg-white"
+                  className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm font-sans text-[var(--text-primary)] outline-none transition-all bg-neutral-50 focus:bg-white"
                   onFocus={(e) => (e.target.style.borderColor = accent)}
                   onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')}
                 />
@@ -263,7 +268,7 @@ export default function LoginPage() {
                 type="submit"
                 disabled={loading || !forgotEmail.trim()}
                 className="w-full py-3.5 rounded-xl text-sm font-serif font-bold uppercase tracking-widest transition-all cursor-pointer disabled:opacity-60 active:scale-[0.98] shadow-md hover:shadow-lg"
-                style={{ backgroundColor: accent, color: 'white' }}
+                style={{ backgroundColor: accent, color: tokens.fgInverse }}
               >
                 {loading ? 'Đang xác thực...' : 'Xác Thực Email'}
               </button>
@@ -288,7 +293,7 @@ export default function LoginPage() {
                 >
                   <CheckCircle2 className="w-5 h-5" style={{ color: accent }} />
                 </div>
-                <h2 className="font-serif text-lg font-bold text-[#1A1814]">Đặt mật khẩu mới</h2>
+                <h2 className="font-serif text-lg font-bold text-[var(--text-primary)]">Đặt mật khẩu mới</h2>
                 <p className="text-xs text-neutral-500 mt-1">
                   Email <span className="font-bold" style={{ color: accent }}>{forgotEmail}</span> đã được xác thực.
                 </p>
@@ -307,7 +312,7 @@ export default function LoginPage() {
                     required
                     minLength={4}
                     autoFocus
-                    className="w-full px-4 py-3 pr-12 rounded-xl border border-neutral-200 text-sm font-sans text-[#1A1814] outline-none transition-all bg-neutral-50 focus:bg-white"
+                    className="w-full px-4 py-3 pr-12 rounded-xl border border-neutral-200 text-sm font-sans text-[var(--text-primary)] outline-none transition-all bg-neutral-50 focus:bg-white"
                     onFocus={(e) => (e.target.style.borderColor = accent)}
                     onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')}
                   />
@@ -331,7 +336,7 @@ export default function LoginPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm font-sans text-[#1A1814] outline-none transition-all bg-neutral-50 focus:bg-white"
+                  className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm font-sans text-[var(--text-primary)] outline-none transition-all bg-neutral-50 focus:bg-white"
                   onFocus={(e) => { e.target.style.borderColor = accent; if (confirmPassword && newPassword !== confirmPassword) setError(null); }}
                   onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')}
                 />
@@ -350,7 +355,7 @@ export default function LoginPage() {
                 type="submit"
                 disabled={loading || !newPassword.trim() || !confirmPassword.trim()}
                 className="w-full py-3.5 rounded-xl text-sm font-serif font-bold uppercase tracking-widest transition-all cursor-pointer disabled:opacity-60 active:scale-[0.98] shadow-md hover:shadow-lg"
-                style={{ backgroundColor: accent, color: 'white' }}
+                style={{ backgroundColor: accent, color: tokens.fgInverse }}
               >
                 {loading ? 'Đang xử lý...' : 'Đặt Lại Mật Khẩu'}
               </button>
@@ -366,7 +371,7 @@ export default function LoginPage() {
               >
                 <CheckCircle2 className="w-8 h-8" style={{ color: accent }} />
               </div>
-              <h2 className="font-serif text-xl font-bold text-[#1A1814]">Đặt lại mật khẩu thành công!</h2>
+              <h2 className="font-serif text-xl font-bold text-[var(--text-primary)]">Đặt lại mật khẩu thành công!</h2>
               <p className="text-sm text-neutral-500 leading-relaxed">
                 Mật khẩu của bạn đã được cập nhật.<br />
                 Giờ bạn có thể đăng nhập với mật khẩu mới.
@@ -375,7 +380,7 @@ export default function LoginPage() {
               <button
                 onClick={() => { resetForgotState(); setEmail(forgotEmail); setTab('login'); }}
                 className="w-full py-3.5 rounded-xl text-sm font-serif font-bold uppercase tracking-widest transition-all cursor-pointer active:scale-[0.98] shadow-md hover:shadow-lg"
-                style={{ backgroundColor: accent, color: 'white' }}
+                style={{ backgroundColor: accent, color: tokens.fgInverse }}
               >
                 Quay Lại Đăng Nhập
               </button>
@@ -417,7 +422,7 @@ export default function LoginPage() {
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Nguyễn Văn A"
                       required
-                      className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm font-sans text-[#1A1814] outline-none transition-all bg-neutral-50 focus:bg-white"
+                      className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm font-sans text-[var(--text-primary)] outline-none transition-all bg-neutral-50 focus:bg-white"
                       onFocus={(e) => (e.target.style.borderColor = accent)}
                       onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')}
                     />
@@ -435,7 +440,7 @@ export default function LoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="student@crimson.edu.vn"
                     required
-                    className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm font-sans text-[#1A1814] outline-none transition-all bg-neutral-50 focus:bg-white"
+                    className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm font-sans text-[var(--text-primary)] outline-none transition-all bg-neutral-50 focus:bg-white"
                     onFocus={(e) => (e.target.style.borderColor = accent)}
                     onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')}
                   />
@@ -454,7 +459,7 @@ export default function LoginPage() {
                       placeholder="••••••••"
                       required
                       minLength={4}
-                      className="w-full px-4 py-3 pr-12 rounded-xl border border-neutral-200 text-sm font-sans text-[#1A1814] outline-none transition-all bg-neutral-50 focus:bg-white"
+                      className="w-full px-4 py-3 pr-12 rounded-xl border border-neutral-200 text-sm font-sans text-[var(--text-primary)] outline-none transition-all bg-neutral-50 focus:bg-white"
                       onFocus={(e) => (e.target.style.borderColor = accent)}
                       onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')}
                     />
@@ -497,7 +502,7 @@ export default function LoginPage() {
                   type="submit"
                   disabled={loading}
                   className="w-full py-3.5 rounded-xl text-sm font-serif font-bold uppercase tracking-widest transition-all cursor-pointer disabled:opacity-60 active:scale-[0.98] shadow-md hover:shadow-lg mt-2"
-                  style={{ backgroundColor: accent, color: 'white' }}
+                  style={{ backgroundColor: accent, color: tokens.fgInverse }}
                 >
                   {loading
                     ? 'Đang xử lý...'
@@ -528,7 +533,7 @@ export default function LoginPage() {
             ].map(({ icon: Icon, label }) => (
               <div key={label} className="text-center p-3 rounded-xl bg-white/60 backdrop-blur-sm border border-white">
                 <Icon className="w-4 h-4 mx-auto mb-1.5" style={{ color: accent }} />
-                <p className="text-[9px] font-sans font-bold text-[var(--text-secondary)] leading-tight">{label}</p>
+                <p className="text-[9px] font-sans font-bold leading-tight text-[#1A1814]">{label}</p>
               </div>
             ))}
           </div>
