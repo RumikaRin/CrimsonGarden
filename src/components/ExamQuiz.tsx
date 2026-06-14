@@ -125,7 +125,7 @@ export default function ExamQuiz() {
 
   if (!activeExamId) {
     return (
-      <div className="space-y-8 max-w-5xl mx-auto relative">
+      <div className="w-full max-w-[1280px] mx-auto space-y-8 relative">
         <div className="absolute top-0 right-0 z-10">
           <ExamSettings
             theme={theme} examMode={examMode} autoAdvance={autoAdvance}
