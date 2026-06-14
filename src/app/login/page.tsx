@@ -220,7 +220,7 @@ export default function LoginPage() {
         >
           {/* ───── FORGOT PASSWORD: STEP 1 — Verify Email ───── */}
           {forgotStep === 'email' && (
-            <form onSubmit={handleForgotVerify} className="p-8 space-y-5">
+            <form onSubmit={handleForgotVerify} className="p-5 space-y-5 sm:p-8">
               <button
                 type="button"
                 onClick={resetForgotState}
@@ -277,7 +277,7 @@ export default function LoginPage() {
 
           {/* ───── FORGOT PASSWORD: STEP 2 — Reset Password ───── */}
           {forgotStep === 'reset' && (
-            <form onSubmit={handleResetPassword} className="p-8 space-y-5">
+            <form onSubmit={handleResetPassword} className="p-5 space-y-5 sm:p-8">
               <button
                 type="button"
                 onClick={() => setForgotStep('email')}
@@ -364,7 +364,7 @@ export default function LoginPage() {
 
           {/* ───── FORGOT PASSWORD: STEP 3 — Done ───── */}
           {forgotStep === 'done' && (
-            <div className="p-8 space-y-5 text-center">
+            <div className="p-5 space-y-5 text-center sm:p-8">
               <div
                 className="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
                 style={{ backgroundColor: `${accent}15` }}
@@ -409,7 +409,7 @@ export default function LoginPage() {
                 ))}
               </div>
 
-              <form onSubmit={handleSubmit} className="p-8 space-y-5">
+              <form onSubmit={handleSubmit} className="p-5 space-y-5 sm:p-8">
                 {/* Name field (signup only) */}
                 {tab === 'signup' && (
                   <div className="space-y-1.5">
@@ -525,7 +525,7 @@ export default function LoginPage() {
 
         {/* Feature highlights (hide during forgot password flow) */}
         {forgotStep === 'idle' && (
-          <div className="mt-6 grid grid-cols-3 gap-3">
+          <div className="mt-5 grid grid-cols-3 gap-1.5 sm:mt-6 sm:gap-3">
             {[
               { icon: BookOpen, label: 'Ôn thi trắc nghiệm' },
               { icon: Sparkles, label: 'AI bóc tách đề' },

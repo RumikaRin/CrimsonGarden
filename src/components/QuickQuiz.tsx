@@ -80,7 +80,7 @@ export default function QuickQuiz() {
       <div className="mx-auto max-w-4xl space-y-6">
         <header className="border-b border-[var(--border-default)] pb-6">
           <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--accent)]">Tự tạo lượt chơi</p>
-          <h1 className="mt-2 font-serif text-4xl font-bold text-[var(--text-primary)]">Trộn đề cho Quiz nhanh</h1>
+          <h1 className="mt-2 font-serif text-3xl font-bold text-[var(--text-primary)] sm:text-4xl">Trộn đề cho Quiz nhanh</h1>
           <p className="mt-3 max-w-2xl text-sm text-[var(--text-secondary)]">Chọn nhiều bộ đề để tạo một lượt quiz ngẫu nhiên. Mỗi câu đúng được 20 điểm thi đua.</p>
         </header>
 
@@ -119,7 +119,7 @@ export default function QuickQuiz() {
               ))}
             </div>
           </div>
-          <button type="button" disabled={questionPool.length === 0} onClick={startQuiz} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-6 text-xs font-bold uppercase tracking-wider text-white disabled:opacity-40">
+          <button type="button" disabled={questionPool.length === 0} onClick={startQuiz} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-6 text-xs font-bold uppercase tracking-wider text-[var(--accent-foreground)] disabled:opacity-40 sm:w-auto">
             Trộn và bắt đầu <ArrowRight className="h-4 w-4" />
           </button>
         </section>
@@ -129,10 +129,10 @@ export default function QuickQuiz() {
 
   if (finished) {
     return (
-      <div className="mx-auto max-w-2xl rounded-2xl border border-[var(--border-default)] bg-[var(--card-bg)] p-7 sm:p-10">
+      <div className="mx-auto max-w-2xl rounded-2xl border border-[var(--border-default)] bg-[var(--card-bg)] p-5 sm:p-10">
         <Trophy className="h-8 w-8 text-[var(--accent)]" />
         <p className="mt-8 text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--accent)]">Hoàn thành</p>
-        <h1 className="mt-2 font-serif text-4xl font-bold text-[var(--text-primary)]">Bạn đạt {score} điểm</h1>
+        <h1 className="mt-2 font-serif text-3xl font-bold text-[var(--text-primary)] sm:text-4xl">Bạn đạt {score} điểm</h1>
         <p className="mt-3 text-sm text-[var(--text-secondary)]">Điểm đã được cộng vào thành tích game và điểm thi đua.</p>
         <div className="mt-8 flex flex-wrap gap-3">
           <button type="button" onClick={startQuiz} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--accent)] px-5 text-xs font-bold uppercase tracking-wider text-white"><RotateCcw className="h-4 w-4" /> Trộn lại</button>
@@ -147,7 +147,7 @@ export default function QuickQuiz() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <header className="flex items-end justify-between gap-4 border-b border-[var(--border-default)] pb-5">
+      <header className="flex items-end justify-between gap-3 border-b border-[var(--border-default)] pb-5">
         <div><p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--accent)]">Mini game đã trộn đề</p><h1 className="mt-2 font-serif text-3xl font-bold text-[var(--text-primary)]">Quiz nhanh</h1></div>
         <div className="text-right"><p className="font-mono text-xl font-bold text-[var(--accent)]">{score}đ</p><p className="text-[10px] text-[var(--text-secondary)]">Câu {index + 1}/{questions.length}</p></div>
       </header>

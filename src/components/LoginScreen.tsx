@@ -122,7 +122,7 @@ export default function LoginScreen({ onSuccess }: LoginScreenProps) {
             ))}
           </div>
 
-          <form onSubmit={handleSubmit} className="p-8 space-y-5">
+          <form onSubmit={handleSubmit} className="p-5 space-y-5 sm:p-8">
             {/* Name field (signup only) */}
             {tab === 'signup' && (
               <div className="space-y-1.5">
@@ -218,7 +218,7 @@ export default function LoginScreen({ onSuccess }: LoginScreenProps) {
         </div>
 
         {/* Feature highlights */}
-        <div className="mt-6 grid grid-cols-3 gap-3">
+        <div className="mt-5 grid grid-cols-3 gap-1.5 sm:mt-6 sm:gap-3">
           {[
             { icon: BookOpen, label: 'Ôn thi trắc nghiệm' },
             { icon: Sparkles, label: 'AI bóc tách đề' },

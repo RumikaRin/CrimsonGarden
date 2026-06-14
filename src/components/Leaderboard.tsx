@@ -180,9 +180,9 @@ export default function Leaderboard() {
     userId: string; i: number; initials: string; displayName: string; children: React.ReactNode; trailing?: React.ReactNode;
   }) {
     return (
-      <div className={cn("flex items-center gap-4 p-4 rounded-2xl border transition-all", getRowCls(i), isMe(userId) ? `ring-2 ring-offset-1 ${accentBorder}` : '')}>
-        <div className="shrink-0 w-8 flex justify-center"><RankBadge rank={i} /></div>
-        <div className={cn("w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0", isMe(userId) ? `${accentBg} text-white` : 'bg-neutral-100 text-[var(--text-secondary)]')}>{initials}</div>
+      <div className={cn("flex items-center gap-2 p-3 rounded-2xl border transition-all sm:gap-4 sm:p-4", getRowCls(i), isMe(userId) ? `ring-2 ring-offset-1 ${accentBorder}` : '')}>
+        <div className="shrink-0 w-6 flex justify-center sm:w-8"><RankBadge rank={i} /></div>
+        <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 sm:h-9 sm:w-9", isMe(userId) ? `${accentBg} text-white` : 'bg-neutral-100 text-[var(--text-secondary)]')}>{initials}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="text-sm font-serif font-bold text-[var(--text-primary)] truncate">{displayName}</p>
@@ -245,17 +245,17 @@ export default function Leaderboard() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 lg:p-8 space-y-8">
+    <div className="max-w-7xl mx-auto w-full space-y-6 sm:p-6 sm:space-y-8 lg:p-8">
       <div className="space-y-3 border-b border-[var(--border-default)] pb-7">
         <span className={cn("text-[11px] font-sans font-bold tracking-[0.2em] uppercase", accentText)}>BẢNG XẾP HẠNG</span>
         <h2 className="text-3xl md:text-4xl font-serif font-bold text-[var(--text-primary)] tracking-tight">Thi Đua Cùng Nhau</h2>
         <p className="text-sm text-neutral-500 font-sans max-w-2xl leading-relaxed">Mỗi điểm bài thi được quy đổi x10; điểm Quiz nhanh và Snake được cộng trực tiếp vào điểm thi đua.</p>
       </div>
 
-      <div className="flex items-center gap-2 bg-neutral-100 p-1 rounded-2xl w-fit border border-neutral-200/60 flex-wrap">
+      <div className="flex w-full items-center gap-1 overflow-x-auto rounded-2xl border border-neutral-200/60 bg-neutral-100 p-1 custom-scrollbar sm:w-fit sm:gap-2">
         {modeTabs.map(({ key, icon: Icon, label }) => (
           <button key={key} onClick={() => setMode(key)}
-            className={cn("flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-serif font-bold uppercase tracking-wider transition-all cursor-pointer",
+            className={cn("flex shrink-0 items-center gap-1.5 px-3 py-2.5 rounded-xl text-[10px] font-serif font-bold uppercase tracking-wider transition-all cursor-pointer sm:gap-2 sm:px-5 sm:text-xs",
               mode === key ? `${accentBg} text-white shadow-md` : 'text-neutral-500 hover:text-neutral-800'
             )}
           >
@@ -314,11 +314,11 @@ export default function Leaderboard() {
                 if (i < 3) {
                   const m = medals[i];
                   return (
-                    <div key={entry.userId} className={cn("card-layered relative overflow-hidden p-5 transition-all", m.bg, isMe(entry.userId) ? `ring-2 ring-offset-2 ${accentBorder}` : "")}>
+                    <div key={entry.userId} className={cn("card-layered relative overflow-hidden p-4 transition-all sm:p-5", m.bg, isMe(entry.userId) ? `ring-2 ring-offset-2 ${accentBorder}` : "")}>
                       <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-10" style={{ backgroundColor: i === 0 ? '#f59e0b' : i === 1 ? '#94a3b8' : '#f97316' }} />
-                      <div className="flex items-center gap-4 relative z-10">
+                      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 relative z-10 sm:gap-4">
                         <div className="shrink-0 flex flex-col items-center">
-                          <div className={cn("w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold shadow-md", m.circle)}>{initials}</div>
+                          <div className={cn("w-11 h-11 rounded-full flex items-center justify-center text-base font-bold shadow-md sm:h-14 sm:w-14 sm:text-lg", m.circle)}>{initials}</div>
                           <span className={cn("text-[9px] font-serif font-bold uppercase tracking-wider mt-1", m.textColor)}>{m.label}</span>
                         </div>
                         <div className="flex-1 min-w-0">
@@ -333,7 +333,7 @@ export default function Leaderboard() {
                           </div>
                         </div>
                         <div className="shrink-0 text-center">
-                          <div className={cn("text-2xl font-mono font-bold", m.textColor)}>{entry.bestScore?.toFixed(1) || '0'}</div>
+                          <div className={cn("text-xl font-mono font-bold sm:text-2xl", m.textColor)}>{entry.bestScore?.toFixed(1) || '0'}</div>
                           <div className="text-[9px] font-sans font-bold text-neutral-400 uppercase tracking-wider">Điểm</div>
                         </div>
                       </div>

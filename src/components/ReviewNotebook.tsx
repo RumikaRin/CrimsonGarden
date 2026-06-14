@@ -57,7 +57,7 @@ export default function ReviewNotebook() {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-8"
     >
-      <header className="grid lg:grid-cols-12 gap-6 items-end border-b border-[var(--border-default)] pb-7">
+      <header className="grid lg:grid-cols-12 gap-5 items-end border-b border-[var(--border-default)] pb-6 sm:gap-6 sm:pb-7">
         <div className="lg:col-span-8">
           <p className="text-xs font-mono text-[var(--accent)] mb-3">Ôn tập thích ứng</p>
           <h1 className="font-serif text-3xl md:text-5xl font-bold tracking-tight text-[var(--text-primary)] text-balance">
@@ -73,7 +73,7 @@ export default function ReviewNotebook() {
             { label: 'Đã trả lời', value: summary.answered },
             { label: 'Độ chính xác', value: `${summary.accuracy}%` },
           ].map((metric) => (
-            <div key={metric.label} className="py-4 px-3 text-center">
+            <div key={metric.label} className="py-3 px-1 text-center sm:py-4 sm:px-3">
               <p className="font-mono text-lg font-bold text-[var(--text-primary)]">{metric.value}</p>
               <p className="text-[10px] text-[var(--text-secondary)] mt-1">{metric.label}</p>
             </div>
@@ -81,7 +81,7 @@ export default function ReviewNotebook() {
         </div>
       </header>
 
-      <div className="grid lg:grid-cols-12 gap-8 items-start">
+      <div className="grid lg:grid-cols-12 gap-5 items-start sm:gap-8">
         <section className="lg:col-span-5 border-t border-[var(--border-default)]">
           {mistakes.map((item, index) => {
             const key = `${item.examId}:${item.question.id}`;

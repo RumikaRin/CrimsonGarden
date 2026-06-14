@@ -126,7 +126,7 @@ export default function ExamQuiz() {
   if (!activeExamId) {
     return (
       <div className="w-full max-w-[1280px] mx-auto space-y-8 relative">
-        <div className="absolute top-0 right-0 z-10">
+        <div className="relative z-10 flex justify-end md:absolute md:right-0 md:top-0">
           <ExamSettings
             theme={theme} examMode={examMode} autoAdvance={autoAdvance}
             showExplanation={showExplanation} soundEnabled={soundEnabled}
@@ -138,7 +138,7 @@ export default function ExamQuiz() {
             onSetTimerMode={setTimerMode}
           />
         </div>
-        <div className="text-center space-y-3 pt-4">
+        <div className="text-center space-y-3 pt-0 md:pt-4">
           <span className={cn("text-[11px] font-sans font-bold tracking-[0.2em] uppercase", accentText)}>BẮT ĐẦU ÔN TẬP</span>
           <h2 className="text-3xl md:text-4xl font-serif font-bold text-[var(--text-primary)] tracking-tight">Chọn Đề Thi</h2>
           <p className="text-sm text-[var(--text-secondary)] font-sans max-w-lg mx-auto leading-relaxed">
@@ -157,7 +157,7 @@ export default function ExamQuiz() {
   if (!activeExam) return null;
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[240px_minmax(0,1fr)_360px] 2xl:grid-cols-[260px_minmax(0,1fr)_400px] w-full min-h-[100dvh] xl:h-[100dvh] gap-4 2xl:gap-5 bg-[var(--page-bg)] p-2 sm:p-4 text-[var(--text-primary)] overflow-y-auto xl:overflow-hidden">
+    <div className="grid grid-cols-1 xl:grid-cols-[240px_minmax(0,1fr)_360px] 2xl:grid-cols-[260px_minmax(0,1fr)_400px] w-full min-h-[100dvh] xl:h-[100dvh] gap-3 sm:gap-4 2xl:gap-5 bg-[var(--page-bg)] p-2 sm:p-4 text-[var(--text-primary)] overflow-y-auto xl:overflow-hidden">
 
       {/* Left Column (Info & Settings) */}
       <aside className="order-2 xl:order-1 flex flex-col gap-3 min-w-0 xl:overflow-y-auto xl:pr-1 custom-scrollbar xl:max-h-full">
@@ -224,7 +224,7 @@ export default function ExamQuiz() {
       </aside>
 
       {/* Center Column (Question) */}
-      <main className="order-1 xl:order-2 min-w-0 flex flex-col min-h-[560px] xl:min-h-0 relative">
+      <main className="order-1 xl:order-2 min-w-0 flex flex-col min-h-0 relative">
         <div className="flex-1 overflow-y-auto xl:pr-1 custom-scrollbar">
           <QuestionCard
             activeExam={activeExam} currentQuestionIndex={currentQuestionIndex}
@@ -241,7 +241,7 @@ export default function ExamQuiz() {
       </main>
 
       {/* Right Column (Question Grid) */}
-      <aside className="order-3 min-w-0 flex flex-col min-h-[620px] xl:h-full xl:min-h-0 bg-[var(--card-bg)] border border-[var(--border-default)] rounded-2xl shadow-[var(--card-shadow)] overflow-hidden">
+      <aside className="order-3 min-w-0 flex h-[72dvh] min-h-[520px] flex-col xl:h-full xl:min-h-0 bg-[var(--card-bg)] border border-[var(--border-default)] rounded-2xl shadow-[var(--card-shadow)] overflow-hidden">
         <QuestionGrid
           activeExam={activeExam} activeAnswers={activeAnswers}
           currentQuestionIndex={currentQuestionIndex} isExamSubmitted={isExamSubmitted}
@@ -294,7 +294,7 @@ interface ExamCardProps {
 
 function ExamCard({ exam, accentBg, accentText, accentLight, onStart }: ExamCardProps) {
   return (
-    <div className={cn("group relative p-6 transition-all duration-300 cursor-pointer card-layered",
+    <div className={cn("group relative p-4 sm:p-6 transition-all duration-300 cursor-pointer card-layered",
       "hover:-translate-y-0.5 active:translate-y-0"
     )} onClick={() => onStart(exam.id)}>
       <div className="flex items-start justify-between gap-4">
@@ -353,7 +353,7 @@ function QuestionCard({ activeExam, currentQuestionIndex, activeAnswers, isExamS
 
   return (
     <div className="bg-[var(--card-bg)] border border-[var(--border-default)] rounded-2xl shadow-[var(--card-shadow)] overflow-hidden animate-fade-in flex-1">
-      <div className="px-6 pt-6 pb-4 border-b border-[var(--border-default)] flex items-center justify-between gap-3">
+      <div className="px-4 pt-4 pb-3 border-b border-[var(--border-default)] flex items-center justify-between gap-3 sm:px-6 sm:pt-6 sm:pb-4">
         <div className="flex items-center gap-3">
           <span className={cn("w-9 h-9 rounded-xl flex items-center justify-center font-mono font-bold text-sm",
             "bg-[var(--accent-light)] text-[var(--accent)]"
@@ -379,11 +379,11 @@ function QuestionCard({ activeExam, currentQuestionIndex, activeAnswers, isExamS
         )}
       </div>
 
-      <div className="px-6 py-5">
+      <div className="px-4 py-4 sm:px-6 sm:py-5">
         <h4 className="text-[var(--text-primary)] text-base sm:text-lg font-sans font-bold leading-relaxed">{q.content}</h4>
       </div>
 
-      <div className="px-6 pb-2 space-y-2.5">
+      <div className="px-4 pb-2 space-y-2.5 sm:px-6">
         {q.answers.map((answer: Answer, oIdx: number) => {
           const optionLetter = String.fromCharCode(65 + oIdx);
           const qId = q.id;
@@ -457,7 +457,7 @@ function QuestionCard({ activeExam, currentQuestionIndex, activeAnswers, isExamS
         </div>
       )}
 
-      <div className="px-6 py-4 border-t border-[var(--border-default)] flex items-center justify-between gap-3 bg-[var(--surface-soft)]">
+      <div className="px-4 py-3 border-t border-[var(--border-default)] flex items-center justify-between gap-2 bg-[var(--surface-soft)] sm:px-6 sm:py-4 sm:gap-3">
         <button disabled={currentQuestionIndex === 0} onClick={onGoPrev}
           className="flex items-center gap-1.5 border border-[var(--border-default)] hover:bg-[var(--surface-soft)] disabled:opacity-30 disabled:cursor-not-allowed text-[var(--text-secondary)] px-4 py-2 rounded-xl text-xs font-serif font-bold uppercase tracking-wider cursor-pointer transition-all"
         ><ChevronLeft className="w-4 h-4" /> Trước</button>

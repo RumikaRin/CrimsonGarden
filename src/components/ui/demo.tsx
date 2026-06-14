@@ -42,8 +42,8 @@ export function SplineSceneBasic() {
           fill={isGreenTheme ? '#224334' : '#DC143C'}
         />
 
-        <div className="flex flex-col lg:flex-row h-auto min-h-[480px] relative z-10 w-full">
-          <div className="flex-1 p-8 sm:p-10 lg:p-12 flex flex-col justify-center space-y-6 lg:max-w-xl">
+        <div className="flex h-auto min-h-0 w-full flex-col lg:min-h-[480px] lg:flex-row relative z-10">
+          <div className="flex flex-1 flex-col justify-center space-y-5 p-5 sm:p-10 sm:space-y-6 lg:max-w-xl lg:p-12">
             <div
               className={cn(
                 'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[10px] font-sans font-bold tracking-wider uppercase w-fit border',
@@ -58,7 +58,7 @@ export function SplineSceneBasic() {
             </div>
 
             <div className="space-y-4">
-              <h1 className="text-4xl sm:text-5xl font-serif font-extrabold tracking-tight leading-[1.1] text-[var(--text-primary)]">
+              <h1 className="text-3xl sm:text-5xl font-serif font-extrabold tracking-tight leading-[1.1] text-[var(--text-primary)]">
                 Ôn Luyện{' '}
                 <span className={cn('italic font-normal', accentText)}>Thông Minh</span>
               </h1>
@@ -69,7 +69,7 @@ export function SplineSceneBasic() {
 
             <ul className="space-y-2.5">
               {benefits.map((item) => (
-                <li key={item} className="flex items-start gap-3 text-sm font-sans text-[var(--text-secondary)]">
+                <li key={item} className="flex items-start gap-3 text-xs font-sans text-[var(--text-secondary)] sm:text-sm">
                   <span className={cn('w-1.5 h-1.5 rounded-full mt-2 shrink-0', dotColor)} />
                   {item}
                 </li>
@@ -99,7 +99,7 @@ export function SplineSceneBasic() {
 
           <div
             className={cn(
-              'flex-1 relative aspect-square lg:aspect-auto min-h-[320px] lg:min-h-0 bg-radial flex items-center justify-center',
+              'flex-1 relative aspect-[4/3] lg:aspect-auto min-h-[240px] sm:min-h-[320px] lg:min-h-0 bg-radial flex items-center justify-center',
               isDarkTheme
                 ? 'from-white/5 via-white/[0.02] to-transparent'
                 : isGreenTheme

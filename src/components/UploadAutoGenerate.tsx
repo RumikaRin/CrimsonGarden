@@ -401,7 +401,7 @@ export default function UploadAutoGenerate() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 gap-5 items-start lg:grid-cols-12 lg:gap-8">
         {/* Dropzone File Upload section */}
         <div className="lg:col-span-7 space-y-6">
           <div
@@ -410,7 +410,7 @@ export default function UploadAutoGenerate() {
             onDragLeave={handleDrag}
             onDrop={handleDrop}
             className={cn(
-              "card-layered p-8 sm:p-12 text-center transition-all relative group cursor-pointer",
+              "card-layered p-5 sm:p-12 text-center transition-all relative group cursor-pointer",
               dragActive && "opacity-90 scale-[1.01]",
               selectedFile && "opacity-95"
             )}
@@ -527,7 +527,7 @@ export default function UploadAutoGenerate() {
         {/* Instructive documentation & Quick Sample testing sidebar options */}
         <div className="lg:col-span-5 space-y-6">
           {/* Card: Auto-Generate Random Exam */}
-          <div className="card-layered p-6 space-y-4">
+          <div className="card-layered p-4 sm:p-6 space-y-4">
             <h4 className="font-serif text-sm font-bold text-neutral-800 flex items-center gap-2">
               <Dices className="w-4 h-4" style={{ color: accent }} /> Tạo Đề Tự Động (Không AI)
             </h4>
@@ -573,7 +573,7 @@ export default function UploadAutoGenerate() {
             </button>
           </div>
 
-          <div className="card-layered p-6 space-y-4">
+          <div className="card-layered p-4 sm:p-6 space-y-4">
             <h4 className="font-serif text-sm font-bold text-neutral-800 flex items-center gap-2">
               <Download className="w-4 h-4" style={{ color: accent }} /> Tải file mẫu
             </h4>

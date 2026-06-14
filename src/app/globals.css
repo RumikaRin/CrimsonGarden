@@ -231,6 +231,19 @@
   background-color: var(--card-bg);
 }
 
+@media (max-width: 639px) {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
 @layer components {
   .bezel-outer {
     @apply bg-black/[0.02] ring-1 ring-black/[0.05] rounded-[2rem] p-1.5;

@@ -34,7 +34,7 @@ export function QuestionGrid({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--card-bg)]">
-      <div className="flex min-h-0 flex-1 flex-col p-4">
+      <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
         <div className="flex items-start justify-between gap-3 mb-3 shrink-0">
           <div>
             <h3 className="text-sm font-serif font-bold text-[var(--text-primary)]">{totalQuestions} câu hỏi</h3>

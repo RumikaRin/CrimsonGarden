@@ -123,7 +123,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {!isFullWidthExam ? (
             <MainLayoutWrapper>
-              <div className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-6 pt-24 pb-8 md:py-10">
+              <div className="w-full max-w-[1440px] mx-auto px-3 pt-20 pb-6 sm:px-6 sm:pt-24 sm:pb-8 md:py-10">
                 {children}
               </div>
             </MainLayoutWrapper>

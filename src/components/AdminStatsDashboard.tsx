@@ -230,7 +230,7 @@ export default function AdminStatsDashboard() {
   };
 
   return (
-    <div className="card-layered p-6 space-y-8">
+    <div className="card-layered p-3 space-y-5 sm:p-6 sm:space-y-8">
       {/* Introduction Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -252,7 +252,7 @@ export default function AdminStatsDashboard() {
       </div>
 
       {/* Stats Widgets */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
 
         {/* KPI 1 */}
         <div className="bg-[var(--card-bg)] border border-[var(--border-default)] rounded-2xl p-5 shadow-sm flex items-center gap-4 hover:border-[var(--accent)]/40 transition-all">
@@ -313,10 +313,10 @@ export default function AdminStatsDashboard() {
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-8">
 
         {/* Line Chart */}
-        <div className="lg:col-span-8 bg-[var(--card-bg)] border border-[var(--border-default)] p-6 rounded-2xl shadow-sm space-y-4">
+        <div className="lg:col-span-8 bg-[var(--card-bg)] border border-[var(--border-default)] p-4 sm:p-6 rounded-2xl shadow-sm space-y-4">
           <div className="flex justify-between items-center pb-2">
             <div>
               <h3 className="font-serif font-bold text-lg text-[var(--text-primary)]">Biểu đồ Xu Hướng Điểm Số</h3>
@@ -337,7 +337,7 @@ export default function AdminStatsDashboard() {
         </div>
 
         {/* Doughnut Categories breakdown */}
-        <div className="lg:col-span-4 bg-[var(--card-bg)] border border-[var(--border-default)] p-6 rounded-2xl shadow-sm space-y-4">
+        <div className="lg:col-span-4 bg-[var(--card-bg)] border border-[var(--border-default)] p-4 sm:p-6 rounded-2xl shadow-sm space-y-4">
           <div className="flex justify-between items-center pb-2">
             <div>
               <h3 className="font-serif font-bold text-lg text-[var(--text-primary)]">Cơ Cấu Bộ Đề</h3>
@@ -355,7 +355,7 @@ export default function AdminStatsDashboard() {
 
       {/* Main Database Table list of exams */}
       <div className="bg-[var(--card-bg)] border border-[var(--border-default)] rounded-2xl overflow-hidden shadow-sm">
-        <div className="p-6 border-b border-[var(--border-default)] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[var(--surface-soft)]">
+        <div className="p-4 sm:p-6 border-b border-[var(--border-default)] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[var(--surface-soft)]">
           <div>
             <h3 className="font-serif font-bold text-lg text-[var(--text-primary)]">Danh Sách & Quản Lý Đề Thi Đào Tạo</h3>
             <p className="text-xs text-[var(--text-secondary)] font-sans mt-0.5">Danh sách các bộ đề thi thử được kết nối vào hệ thống Neon PostgreSQL qua Adapter</p>

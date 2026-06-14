@@ -440,9 +440,9 @@ export default function VocabularySnake() {
         </div>
 
         {/* Digital Stats area */}
-        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:gap-4">
           {/* Score Counter */}
-          <div className="flex min-w-[100px] flex-col border-l border-[var(--border-default)] px-4 py-1">
+          <div className="flex min-w-0 flex-col border-l border-[var(--border-default)] px-3 py-1 sm:min-w-[100px] sm:px-4">
             <span className="text-[9px] font-sans font-bold uppercase tracking-wider text-[var(--text-secondary)]">Điểm Số</span>
             <span className="text-2xl font-mono font-bold leading-none tracking-wider text-[var(--text-primary)]">
               {formatScore(score)}
@@ -450,7 +450,7 @@ export default function VocabularySnake() {
           </div>
 
           {/* High Score Pill */}
-          <div className="flex min-w-[100px] flex-col border-l border-[var(--border-default)] px-4 py-1">
+          <div className="flex min-w-0 flex-col border-l border-[var(--border-default)] px-3 py-1 sm:min-w-[100px] sm:px-4">
             <span className="text-[9px] font-sans font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-1">
               <Award className="w-3 h-3 text-amber-500" /> Điểm Cao Nhất
             </span>
@@ -460,7 +460,7 @@ export default function VocabularySnake() {
           </div>
 
           {/* Sound settings and Pause control toggles */}
-          <div className="flex items-center gap-1.5 border-l pl-3 border-[var(--border-default)]">
+          <div className="col-span-2 flex items-center gap-1.5 border-l pl-3 border-[var(--border-default)] sm:col-span-1">
             <button
               onClick={() => setSoundEnabled(!soundEnabled)}
               title={soundEnabled ? 'Tắt âm thanh' : 'Bật âm thanh'}
@@ -567,21 +567,21 @@ export default function VocabularySnake() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="absolute inset-0 bg-[var(--page-bg)]/96 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-30"
+                  className="absolute inset-0 bg-[var(--page-bg)]/96 backdrop-blur-sm flex flex-col items-center justify-center p-3 text-center z-30 sm:p-6"
                 >
                   <motion.div
                     initial={{ scale: 0.9, y: 10 }}
                     animate={{ scale: 1, y: 0 }}
-                    className="max-w-md space-y-5 flex flex-col items-center"
+                    className="max-w-md space-y-3 flex flex-col items-center sm:space-y-5"
                   >
-                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center border border-[var(--accent)]" style={{ backgroundColor: 'var(--card-bg)' }}>
+                    <div className="hidden w-16 h-16 rounded-2xl items-center justify-center border border-[var(--accent)] sm:flex" style={{ backgroundColor: 'var(--card-bg)' }}>
                       <Gamepad2 className="w-8 h-8 text-[var(--accent)]" />
                     </div>
                     <div className="space-y-1">
                       <h3 className="text-xl sm:text-2xl font-serif font-bold text-[var(--text-primary)]">
                         Rắn Săn Từ Vựng
                       </h3>
-                      <p className="text-xs text-[var(--text-secondary)] font-sans max-w-xs mx-auto leading-relaxed">
+                      <p className="hidden text-xs text-[var(--text-secondary)] font-sans max-w-xs mx-auto leading-relaxed sm:block">
                         Hãy điều khiển chú rắn để săn các từ tiếng Anh chính xác tương ứng với nghĩa tiếng Việt hiển thị ở bảng điều khiển phía trên.
                       </p>
                     </div>
@@ -590,7 +590,7 @@ export default function VocabularySnake() {
                       <Play className="w-4 h-4 fill-current" /> {_t('start')} GAME
                     </button>
 
-                    <div className="flex items-center gap-1 text-[10px] text-zinc-400 font-sans">
+                    <div className="hidden items-center gap-1 text-[10px] text-zinc-400 font-sans sm:flex">
                       <Keyboard className="w-3.5 h-3.5" />
                       <span>Sử dụng các phím mũi tên hoặc W, A, S, D để điều khiển</span>
                     </div>

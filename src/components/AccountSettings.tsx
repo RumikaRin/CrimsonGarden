@@ -84,7 +84,7 @@ export default function AccountSettings() {
       >
         {/* Header */}
         <motion.div
-          className="px-6 py-5 flex items-center gap-4 border-b"
+          className="px-4 py-4 flex items-center gap-3 border-b sm:px-6 sm:py-5 sm:gap-4"
           style={{ backgroundColor: bgPage, borderColor: tokens.cardBorder }}
           variants={item}
           initial="initial"
@@ -117,10 +117,10 @@ export default function AccountSettings() {
             { label: 'Ngày học', value: `${totalDays} ngày` },
             { label: 'Vai trò', value: currentUser.role === 'ADMIN' ? 'Giáo viên' : 'Học sinh' },
           ].map(({ label, value, accent: isAccent }) => (
-            <motion.div key={label} variants={item} className="flex flex-col items-center py-4 px-4 bg-[var(--surface-soft)]">
+            <motion.div key={label} variants={item} className="flex flex-col items-center py-3 px-1 bg-[var(--surface-soft)] sm:py-4 sm:px-4">
               <span className="text-[9px] font-sans font-bold uppercase tracking-widest text-neutral-400">{label}</span>
               <span
-                className="text-sm font-mono font-bold mt-0.5"
+                className="text-xs font-mono font-bold mt-0.5 text-center sm:text-sm"
                 style={{ color: isAccent ? accent : tokens.fg }}
               >{value}</span>
             </motion.div>
@@ -128,7 +128,7 @@ export default function AccountSettings() {
         </motion.div>
 
         {/* Form */}
-        <form onSubmit={handleSave} className="p-6 space-y-5">
+        <form onSubmit={handleSave} className="p-4 space-y-5 sm:p-6">
           {/* Email (read-only) */}
           <motion.div className="space-y-1.5" variants={item} initial="initial" animate="animate">
             <label className="text-[10px] font-sans font-bold uppercase tracking-widest text-neutral-400 flex items-center gap-1.5">
