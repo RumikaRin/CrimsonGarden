@@ -53,8 +53,17 @@ interface ExamStore {
   setShowExplanation: (val: boolean) => void;
   soundEnabled: boolean;
   setSoundEnabled: (val: boolean) => void;
+  shuffleQuestions: boolean;
+  setShuffleQuestions: (val: boolean) => void;
+  shuffleAnswers: boolean;
+  setShuffleAnswers: (val: boolean) => void;
+  timerMode: 'timed' | 'unlimited';
+  setTimerMode: (mode: 'timed' | 'unlimited') => void;
+  shuffledExam: Exam | null;
+  isExamsFetched: boolean;
 
   // Actions
+  fetchCloudExams: () => Promise<void>;
   addExam: (exam: Exam) => void;
   startExam: (examId: string) => void;
   selectAnswer: (questionId: string, answerId: string) => void;
@@ -157,6 +166,7 @@ export const useExamStore = create<ExamStore>()(
         return { success: true };
       },
 
+      isExamsFetched: false,
       exams: initialExams,
       vocabularyPacks: initialVocabularyPacks,
       attempts: initialAttempts,
@@ -170,6 +180,13 @@ export const useExamStore = create<ExamStore>()(
       setShowExplanation: (val) => set({ showExplanation: val }),
       soundEnabled: false,
       setSoundEnabled: (val) => set({ soundEnabled: val }),
+      shuffleQuestions: false,
+      setShuffleQuestions: (val) => set({ shuffleQuestions: val }),
+      shuffleAnswers: false,
+      setShuffleAnswers: (val) => set({ shuffleAnswers: val }),
+      timerMode: 'timed',
+      setTimerMode: (mode) => set({ timerMode: mode }),
+      shuffledExam: null,
 
       // Initial active session state
       activeExamId: null,
@@ -178,6 +195,28 @@ export const useExamStore = create<ExamStore>()(
       timeRemaining: 0,
       isExamActive: false,
       isExamSubmitted: false,
+
+      fetchCloudExams: async () => {
+        if (get().isExamsFetched) return;
+        try {
+          const res = await fetch('/api/exam/list');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.exams) {
+              const currentExams = get().exams;
+              const newExams = [...data.exams];
+              currentExams.forEach(ce => {
+                if (!newExams.find((ne: Exam) => ne.id === ce.id)) {
+                  newExams.push(ce);
+                }
+              });
+              set({ exams: newExams, isExamsFetched: true });
+            }
+          }
+        } catch (err) {
+          console.warn('Fetch cloud exams error:', err);
+        }
+      },
 
       addExam: (exam: Exam) => {
         set((state) => ({
@@ -198,11 +237,37 @@ export const useExamStore = create<ExamStore>()(
         const exam = get().exams.find((e) => e.id === examId);
         if (!exam) return;
 
+        const { shuffleQuestions, shuffleAnswers, timerMode } = get();
+
+        // Deep copy to avoid mutating original
+        let processedExam: Exam = JSON.parse(JSON.stringify(exam));
+
+        // Fisher-Yates shuffle helper
+        const shuffleArray = (array: any[]) => {
+          for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+          }
+        };
+
+        if (shuffleQuestions) {
+          shuffleArray(processedExam.questions);
+        }
+
+        if (shuffleAnswers) {
+          processedExam.questions.forEach((q) => {
+            shuffleArray(q.answers);
+          });
+        }
+
+        const initialTime = timerMode === 'unlimited' ? -1 : exam.duration * 60;
+
         set({
           activeExamId: examId,
+          shuffledExam: processedExam,
           activeAnswers: {},
           currentQuestionIndex: 0,
-          timeRemaining: exam.duration * 60,
+          timeRemaining: initialTime,
           isExamActive: true,
           isExamSubmitted: false
         });
@@ -223,6 +288,7 @@ export const useExamStore = create<ExamStore>()(
 
       decrementTime: () => {
         const current = get().timeRemaining;
+        if (current === -1) return; // Unlimited time
         if (current <= 1) {
           set({ timeRemaining: 0 });
           get().submitExam();
@@ -233,11 +299,10 @@ export const useExamStore = create<ExamStore>()(
 
       submitExam: (userId?: string) => {
         const resolvedUserId = get().currentUser?.id || userId || 'guest';
-        const { activeExamId, activeAnswers, exams, timeRemaining } = get();
-        if (!activeExamId) return;
+        const { activeExamId, activeAnswers, shuffledExam, timeRemaining } = get();
+        if (!activeExamId || !shuffledExam) return;
 
-        const exam = exams.find((e) => e.id === activeExamId);
-        if (!exam) return;
+        const exam = shuffledExam;
 
         // Calculate score
         let totalPoints = 0;
@@ -254,15 +319,17 @@ export const useExamStore = create<ExamStore>()(
 
         const calculatedScore = totalPoints > 0 ? (gainedPoints / totalPoints) * 10 : 0;
         const normalizedScore = parseFloat(calculatedScore.toFixed(2));
+        
+        const timeSpent = timeRemaining === -1 ? 0 : exam.duration * 60 - timeRemaining;
 
         const newAttempt: ExamAttempt = {
           id: `att-${Date.now()}`,
           userId: resolvedUserId,
           examId: activeExamId,
           score: normalizedScore,
-          durationSec: exam.duration * 60 - timeRemaining,
+          durationSec: timeSpent,
           answers: activeAnswers,
-          startedAt: new Date(Date.now() - (exam.duration * 60 - timeRemaining) * 1000).toISOString(),
+          startedAt: new Date(Date.now() - timeSpent * 1000).toISOString(),
           endedAt: new Date().toISOString()
         };
 
@@ -314,7 +381,7 @@ export const useExamStore = create<ExamStore>()(
             score: normalizedScore,
             correctAnswers,
             wrongAnswers,
-            timeSpent: exam.duration * 60 - timeRemaining,
+            timeSpent: timeSpent,
           })
         }).catch((err) => {
           console.warn('Leaderboard save error:', err);
@@ -324,6 +391,7 @@ export const useExamStore = create<ExamStore>()(
       resetExamSession: () => {
         set({
           activeExamId: null,
+          shuffledExam: null,
           activeAnswers: {},
           currentQuestionIndex: 0,
           timeRemaining: 0,
@@ -471,6 +539,10 @@ export const useExamStore = create<ExamStore>()(
         autoAdvance: state.autoAdvance,
         showExplanation: state.showExplanation,
         soundEnabled: state.soundEnabled,
+        shuffleQuestions: state.shuffleQuestions,
+        shuffleAnswers: state.shuffleAnswers,
+        timerMode: state.timerMode,
+        shuffledExam: state.shuffledExam,
         activeExamId: state.activeExamId,
         activeAnswers: state.activeAnswers,
         currentQuestionIndex: state.currentQuestionIndex,

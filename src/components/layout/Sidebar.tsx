@@ -49,7 +49,100 @@ export function Sidebar() {
     ? currentUser.name.split(' ').map((w) => w[0]).slice(-2).join('').toUpperCase()
     : '??';
 
-  if (!currentUser) return null;
+  if (!currentUser) {
+    return (
+      <>
+        {/* Mobile header */}
+        <div className="md:hidden fixed top-0 left-0 right-0 z-50 px-2 pt-2">
+          <div className={cn('rounded-2xl px-4 h-14 flex items-center justify-between border',
+            isGreenTheme ? 'card-layered' : 'bg-[#FFF5F7] border-[var(--accent)]'
+          )}>
+            <span className="font-serif text-lg font-bold">
+              <span className="text-[var(--accent)]">Crimson</span>{' '}
+              <span className="italic font-normal text-[var(--accent)]">Garden</span>
+            </span>
+            <button
+              onClick={() => router.push('/login')}
+              className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase bg-[var(--accent)] text-white"
+            >
+              Đăng nhập
+            </button>
+          </div>
+        </div>
+
+        {/* Desktop sidebar */}
+        <aside className={cn(
+          'hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-64 z-40 border-r transition-colors duration-300',
+          isGreenTheme ? 'bg-white border-[var(--border-default)]' : 'bg-[#FAF9F6] border-[var(--border-default)]'
+        )}>
+          <div className="px-6 pt-8 pb-6 border-b border-[var(--border-default)]">
+            <button onClick={() => router.push('/')} className="text-left cursor-pointer">
+              <span className="font-serif text-2xl tracking-tight font-bold block">
+                <span className="text-[var(--accent)]">Crimson</span>{' '}
+                <span className="italic font-normal text-[var(--accent)]">Garden</span>
+              </span>
+              <p className="text-[9px] font-sans font-bold tracking-[0.25em] uppercase mt-1 text-[var(--text-muted)]">
+                HỌ VIỆN THƯ THÁI
+              </p>
+            </button>
+          </div>
+
+          <nav className="flex-1 px-3 py-6 space-y-1.5 overflow-y-auto">
+            {navItems.map(({ path, label, icon: Icon }) => {
+              const isActive = pathname === path && !isAdminMode;
+              return (
+                <motion.button
+                  key={path}
+                  onClick={() => router.push(path)}
+                  whileHover={{ x: 2 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-sans font-medium transition-all text-left',
+                    isActive
+                      ? 'bg-[var(--accent)] text-white font-semibold'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--accent-light)]/30'
+                  )}
+                >
+                  <Icon className={cn('w-4 h-4 shrink-0', isActive ? 'text-white' : '')} />
+                  <span>{label}</span>
+                </motion.button>
+              );
+            })}
+          </nav>
+
+          <div className="px-3 py-4 border-t border-[var(--border-default)]">
+            <div className="flex items-center bg-[var(--page-bg)] p-0.5 rounded-lg border border-[var(--border-default)] mb-3">
+              <button
+                onClick={() => setTheme('cozy')}
+                className={cn(
+                  'flex-1 px-3 py-1.5 rounded-md text-[10px] font-sans font-bold uppercase tracking-wider transition-all',
+                  !isGreenTheme
+                    ? 'bg-[var(--accent)] text-white shadow-sm'
+                    : 'text-[var(--text-secondary)] opacity-60 hover:opacity-100'
+                )}
+              >Crimson</button>
+              <button
+                onClick={() => setTheme('neon')}
+                className={cn(
+                  'flex-1 px-3 py-1.5 rounded-md text-[10px] font-sans font-bold uppercase tracking-wider transition-all',
+                  isGreenTheme
+                    ? 'bg-[var(--accent)] text-white shadow-sm'
+                    : 'text-[var(--text-secondary)] opacity-60 hover:opacity-100'
+                )}
+              >Garden</button>
+            </div>
+
+            <button
+              onClick={() => router.push('/login')}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-sans font-bold uppercase tracking-wider bg-[var(--accent)] text-white shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
+            >
+              Đăng nhập / Đăng ký
+            </button>
+          </div>
+        </aside>
+      </>
+    );
+  }
 
   return (
     <>

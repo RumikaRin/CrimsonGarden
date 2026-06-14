@@ -19,8 +19,16 @@ export default function ExamQuiz() {
     exams, activeExamId, activeAnswers, currentQuestionIndex, timeRemaining,
     isExamActive, isExamSubmitted, examMode, setExamMode, autoAdvance, setAutoAdvance,
     showExplanation, setShowExplanation, soundEnabled, setSoundEnabled,
+    shuffleQuestions, setShuffleQuestions, shuffleAnswers, setShuffleAnswers, timerMode, setTimerMode, shuffledExam,
+    isExamsFetched, fetchCloudExams,
     startExam, selectAnswer, setCurrentQuestionIndex, decrementTime, submitExam, resetExamSession, currentUser
   } = useExamStore();
+
+  React.useEffect(() => {
+    if (!isExamsFetched) {
+      fetchCloudExams();
+    }
+  }, [isExamsFetched, fetchCloudExams]);
 
   const isGreenTheme = useIsGreen();
   const [markedQuestions, setMarkedQuestions] = React.useState<Record<string, boolean>>({});
@@ -28,7 +36,7 @@ export default function ExamQuiz() {
   const [showSettings, setShowSettings] = React.useState(false);
   const gridContainerRef = React.useRef<HTMLDivElement>(null);
 
-  const activeExam = exams.find(e => e.id === activeExamId) || null;
+  const activeExam = shuffledExam || exams.find(e => e.id === activeExamId) || null;
   const accentColor = 'var(--accent)';
   const accentBg = 'bg-[var(--accent)]';
   const accentText = 'text-[var(--accent)]';
@@ -98,8 +106,20 @@ export default function ExamQuiz() {
 
   if (!activeExamId) {
     return (
-      <div className="space-y-8 max-w-5xl mx-auto">
-        <div className="text-center space-y-3">
+      <div className="space-y-8 max-w-5xl mx-auto relative">
+        <div className="absolute top-0 right-0 z-10">
+          <ExamSettings
+            isGreenTheme={true} examMode={examMode} autoAdvance={autoAdvance}
+            showExplanation={showExplanation} soundEnabled={soundEnabled}
+            shuffleQuestions={shuffleQuestions} shuffleAnswers={shuffleAnswers} timerMode={timerMode}
+            showSettings={showSettings} onToggleSettings={() => setShowSettings(!showSettings)}
+            onSetExamMode={setExamMode} onSetAutoAdvance={setAutoAdvance}
+            onSetShowExplanation={setShowExplanation} onSetSoundEnabled={setSoundEnabled}
+            onSetShuffleQuestions={setShuffleQuestions} onSetShuffleAnswers={setShuffleAnswers}
+            onSetTimerMode={setTimerMode}
+          />
+        </div>
+        <div className="text-center space-y-3 pt-4">
           <span className={cn("text-[11px] font-sans font-bold tracking-[0.2em] uppercase", accentText)}>BẮT ĐẦU ÔN TẬP</span>
           <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#1A1814] tracking-tight">Chọn Đề Thi</h2>
           <p className="text-sm text-neutral-500 font-sans max-w-lg mx-auto leading-relaxed">
@@ -139,9 +159,13 @@ export default function ExamQuiz() {
                 <ExamSettings
                   isGreenTheme={true} examMode={examMode} autoAdvance={autoAdvance}
                   showExplanation={showExplanation} soundEnabled={soundEnabled}
+                  shuffleQuestions={shuffleQuestions} shuffleAnswers={shuffleAnswers} timerMode={timerMode}
                   showSettings={showSettings} onToggleSettings={() => setShowSettings(!showSettings)}
                   onSetExamMode={setExamMode} onSetAutoAdvance={setAutoAdvance}
                   onSetShowExplanation={setShowExplanation} onSetSoundEnabled={setSoundEnabled}
+                  onSetShuffleQuestions={setShuffleQuestions} onSetShuffleAnswers={setShuffleAnswers}
+                  onSetTimerMode={setTimerMode}
+                  hidePreExamSettings={true}
                 />
                 <button onClick={() => setShowGrid(!showGrid)}
                   className={cn("p-2 rounded-lg transition-all hidden lg:flex hover:bg-white/10", showGrid ? "bg-white/10" : "")}
@@ -151,7 +175,9 @@ export default function ExamQuiz() {
                 </button>
                 <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg border", "border-[var(--accent)]/30 bg-[var(--accent)]/10")}>
                   <Clock className="w-3.5 h-3.5 animate-pulse" />
-                  <span className={cn("font-mono text-sm font-bold tabular-nums", timeRemaining < 60 ? "text-red-400" : "")}>{formatTime(timeRemaining)}</span>
+                  <span className={cn("font-mono text-sm font-bold tabular-nums", timeRemaining !== -1 && timeRemaining < 60 ? "text-red-400" : "")}>
+                    {timeRemaining === -1 ? '∞' : formatTime(timeRemaining)}
+                  </span>
                 </div>
               </>
             )}
