@@ -380,7 +380,7 @@ function QuestionCard({ activeExam, currentQuestionIndex, activeAnswers, isExamS
       </div>
 
       <div className="px-6 py-5">
-        <h4 className="text-[var(--text-primary)] text-base sm:text-lg font-serif font-bold leading-relaxed">{q.content}</h4>
+        <h4 className="text-[var(--text-primary)] text-base sm:text-lg font-sans font-bold leading-relaxed">{q.content}</h4>
       </div>
 
       <div className="px-6 pb-2 space-y-2.5">
