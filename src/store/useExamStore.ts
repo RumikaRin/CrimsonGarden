@@ -70,6 +70,7 @@ interface ExamStore {
   setCurrentQuestionIndex: (index: number) => void;
   decrementTime: () => void;
   submitExam: (userId?: string) => void;
+  retryIncorrectQuestions: () => void;
   resetExamSession: () => void;
   addGameScore: (score: GameScore) => void;
   addMockAttempt: (attempt: ExamAttempt) => void;
@@ -385,6 +386,34 @@ export const useExamStore = create<ExamStore>()(
           })
         }).catch((err) => {
           console.warn('Leaderboard save error:', err);
+        });
+      },
+
+      retryIncorrectQuestions: () => {
+        const { shuffledExam, activeAnswers, timerMode } = get();
+        if (!shuffledExam) return;
+
+        const questionsToReview = shuffledExam.questions.filter((question) => {
+          const selectedAnswerId = activeAnswers[question.id];
+          const selectedAnswer = question.answers.find((answer) => answer.id === selectedAnswerId);
+          return !selectedAnswer?.isCorrect;
+        });
+
+        if (questionsToReview.length === 0) return;
+
+        set({
+          shuffledExam: {
+            ...shuffledExam,
+            title: shuffledExam.title.includes('· Làm lại câu sai')
+              ? shuffledExam.title
+              : `${shuffledExam.title} · Làm lại câu sai`,
+            questions: questionsToReview,
+          },
+          activeAnswers: {},
+          currentQuestionIndex: 0,
+          timeRemaining: timerMode === 'unlimited' ? -1 : shuffledExam.duration * 60,
+          isExamActive: true,
+          isExamSubmitted: false,
         });
       },
 

@@ -21,7 +21,7 @@ export default function ExamQuiz() {
     showExplanation, setShowExplanation, soundEnabled, setSoundEnabled,
     shuffleQuestions, setShuffleQuestions, shuffleAnswers, setShuffleAnswers, timerMode, setTimerMode, shuffledExam,
     isExamsFetched, fetchCloudExams,
-    startExam, selectAnswer, setCurrentQuestionIndex, decrementTime, submitExam, resetExamSession, currentUser
+    startExam, selectAnswer, setCurrentQuestionIndex, decrementTime, submitExam, retryIncorrectQuestions, resetExamSession, currentUser
   } = useExamStore();
 
   React.useEffect(() => {
@@ -85,6 +85,10 @@ export default function ExamQuiz() {
   }, [activeExam, currentQuestionIndex, isExamSubmitted, activeAnswers, selectAnswer, setCurrentQuestionIndex]);
 
   const handleStartExam = (examId: string) => { startExam(examId); setMarkedQuestions({}); };
+  const handleRetryIncorrect = () => {
+    retryIncorrectQuestions();
+    setMarkedQuestions({});
+  };
   const formatTime = (seconds: number) => `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
   const toggleMarked = (questionId: string) => setMarkedQuestions(prev => ({ ...prev, [questionId]: !prev[questionId] }));
 
@@ -104,6 +108,20 @@ export default function ExamQuiz() {
   const answeredCount = activeExam ? Object.keys(activeAnswers).length : 0;
   const totalQuestions = activeExam?.questions.length ?? 0;
   const progressPct = totalQuestions > 0 ? (answeredCount / totalQuestions) * 100 : 0;
+  const reviewCount = activeExam
+    ? activeExam.questions.filter((question) => {
+        const selectedAnswerId = activeAnswers[question.id];
+        const selectedAnswer = question.answers.find((answer) => answer.id === selectedAnswerId);
+        return !selectedAnswer?.isCorrect;
+      }).length
+    : 0;
+  const hasIncorrectAnswers = activeExam
+    ? activeExam.questions.some((question) => {
+        const selectedAnswerId = activeAnswers[question.id];
+        const selectedAnswer = question.answers.find((answer) => answer.id === selectedAnswerId);
+        return !!selectedAnswer && !selectedAnswer.isCorrect;
+      })
+    : false;
 
   if (!activeExamId) {
     return (
@@ -228,10 +246,11 @@ export default function ExamQuiz() {
           activeExam={activeExam} activeAnswers={activeAnswers}
           currentQuestionIndex={currentQuestionIndex} isExamSubmitted={isExamSubmitted}
           markedQuestions={markedQuestions} isGreenTheme={true} examMode={examMode}
-          answeredCount={answeredCount} totalQuestions={totalQuestions}
+          answeredCount={answeredCount} reviewCount={reviewCount} hasIncorrectAnswers={hasIncorrectAnswers} totalQuestions={totalQuestions}
           progressPct={progressPct} gridContainerRef={gridContainerRef}
           onSelectQuestion={setCurrentQuestionIndex}
           onSubmit={() => submitExam(currentUser?.id)}
+          onRetryIncorrect={handleRetryIncorrect}
           onResetSession={resetExamSession}
         />
       </aside>
@@ -329,6 +348,8 @@ interface QuestionCardProps {
 function QuestionCard({ activeExam, currentQuestionIndex, activeAnswers, isExamSubmitted, isGreenTheme, examMode, showExplanation, markedQuestions, totalQuestions, accentText, onSelectAnswer, onToggleMarked, onGoNext, onGoPrev, autoAdvance, setCurrentQuestionIndex }: QuestionCardProps) {
   const q = activeExam.questions[currentQuestionIndex];
   if (!q) return null;
+  const originalQuestionNumber = q.order > 0 ? q.order : currentQuestionIndex + 1;
+  const isReviewSession = activeExam.title.includes('· Làm lại câu sai');
 
   return (
     <div className="bg-[var(--card-bg)] border border-[var(--border-default)] rounded-2xl shadow-[var(--card-shadow)] overflow-hidden animate-fade-in flex-1">
@@ -336,10 +357,12 @@ function QuestionCard({ activeExam, currentQuestionIndex, activeAnswers, isExamS
         <div className="flex items-center gap-3">
           <span className={cn("w-9 h-9 rounded-xl flex items-center justify-center font-mono font-bold text-sm",
             "bg-[var(--accent-light)] text-[var(--accent)]"
-          )}>{currentQuestionIndex + 1}</span>
+          )}>{originalQuestionNumber}</span>
           <div>
             <span className="block text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-400">
-              Câu hỏi {currentQuestionIndex + 1}/{totalQuestions}
+              {isReviewSession
+                ? `Câu gốc ${originalQuestionNumber} · lượt ôn ${currentQuestionIndex + 1}/${totalQuestions}`
+                : `Câu hỏi ${currentQuestionIndex + 1}/${totalQuestions}`}
             </span>
             {q.points && <span className="text-[10px] text-neutral-300 font-sans">{q.points} điểm</span>}
           </div>

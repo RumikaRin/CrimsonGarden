@@ -14,18 +14,21 @@ interface QuestionGridProps {
   isGreenTheme: boolean;
   examMode?: 'practice' | 'exam';
   answeredCount: number;
+  reviewCount: number;
+  hasIncorrectAnswers: boolean;
   totalQuestions: number;
   progressPct: number;
   gridContainerRef: React.RefObject<HTMLDivElement | null>;
   onSelectQuestion: (index: number) => void;
   onSubmit: () => void;
+  onRetryIncorrect: () => void;
   onResetSession: () => void;
 }
 
 export function QuestionGrid({
   activeExam, activeAnswers, currentQuestionIndex, isExamSubmitted, markedQuestions,
   isGreenTheme, examMode, answeredCount, totalQuestions, progressPct,
-  gridContainerRef, onSelectQuestion, onSubmit, onResetSession,
+  reviewCount, hasIncorrectAnswers, gridContainerRef, onSelectQuestion, onSubmit, onRetryIncorrect, onResetSession,
 }: QuestionGridProps) {
   const accentBg = 'bg-[var(--accent)]';
 
@@ -44,6 +47,7 @@ export function QuestionGrid({
         <div ref={gridContainerRef} className="min-h-[320px] flex-1 overflow-y-auto pr-1 custom-scrollbar">
           <div className="grid grid-cols-5 gap-2 pb-2">
             {activeExam.questions.map((q, idx) => {
+              const originalQuestionNumber = q.order > 0 ? q.order : idx + 1;
               const isAnswered = !!activeAnswers[q.id];
               const isFlagged = !isExamSubmitted && !!markedQuestions[q.id];
               const isActive = currentQuestionIndex === idx;
@@ -61,9 +65,10 @@ export function QuestionGrid({
 
               return (
                 <button key={q.id} data-qidx={idx} onClick={() => onSelectQuestion(idx)}
+                  aria-label={`Câu gốc ${originalQuestionNumber}`}
                   className={cn("h-11 rounded-lg border flex items-center justify-center font-mono text-xs transition-all cursor-pointer hover:border-[var(--accent)] active:scale-95", cls)}
                 >
-                  {idx + 1}
+                  {originalQuestionNumber}
                 </button>
               );
             })}
@@ -76,6 +81,14 @@ export function QuestionGrid({
           <Legend color={cn("border border-[var(--accent)] bg-[var(--accent-light)]")} label="Đang xem" />
         </div>
         <div className="mt-4 pt-4 border-t border-[var(--border-default)] shrink-0">
+          {!isExamSubmitted && examMode === 'practice' && hasIncorrectAnswers && reviewCount > 0 && (
+            <button
+              onClick={onRetryIncorrect}
+              className="mb-2.5 w-full rounded-xl border border-red-500/50 bg-red-500/10 px-3 py-3 text-xs font-serif font-bold uppercase tracking-wider text-red-500 transition-all hover:border-red-500 hover:bg-red-500 hover:text-white"
+            >
+              Làm lại {reviewCount} câu cần ôn
+            </button>
+          )}
           {!isExamSubmitted ? (
             <button onClick={onSubmit}
               className={cn("w-full flex items-center justify-center gap-2 text-[var(--accent-foreground)] py-3 rounded-xl font-sans font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer", accentBg)}
