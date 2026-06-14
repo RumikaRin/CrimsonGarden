@@ -20,7 +20,7 @@ export default function AdminPage() {
         <AdminStatsDashboard />
       ) : (
         <div className="text-center py-20">
-          <p className="font-serif text-lg text-neutral-500">Bạn không có quyền truy cập trang này.</p>
+          <p className="font-serif text-lg text-[var(--text-secondary)]">Bạn không có quyền truy cập trang này.</p>
         </div>
       )}
     </motion.div>

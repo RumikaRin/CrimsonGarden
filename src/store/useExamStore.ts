@@ -82,6 +82,54 @@ interface ExamStore {
 const initialAttempts: ExamAttempt[] = [];
 const initialGameScores: GameScore[] = [];
 
+interface PersistedExamSession {
+  shuffledExam: Exam | null;
+  activeExamId: string | null;
+  activeAnswers: Record<string, string>;
+  currentQuestionIndex: number;
+  timeRemaining: number;
+  isExamActive: boolean;
+  isExamSubmitted: boolean;
+}
+
+const emptyExamSession: PersistedExamSession = {
+  shuffledExam: null,
+  activeExamId: null,
+  activeAnswers: {},
+  currentQuestionIndex: 0,
+  timeRemaining: 0,
+  isExamActive: false,
+  isExamSubmitted: false,
+};
+
+const getSessionStorageKey = (name: string, userId: string) => `${name}-${userId}-tab-session`;
+
+function extractExamSession(state: Partial<ExamStore>): PersistedExamSession {
+  return {
+    shuffledExam: state.shuffledExam ?? null,
+    activeExamId: state.activeExamId ?? null,
+    activeAnswers: state.activeAnswers ?? {},
+    currentQuestionIndex: state.currentQuestionIndex ?? 0,
+    timeRemaining: state.timeRemaining ?? 0,
+    isExamActive: state.isExamActive ?? false,
+    isExamSubmitted: state.isExamSubmitted ?? false,
+  };
+}
+
+function omitExamSession(state: Partial<ExamStore>): Partial<ExamStore> {
+  const {
+    shuffledExam: _shuffledExam,
+    activeExamId: _activeExamId,
+    activeAnswers: _activeAnswers,
+    currentQuestionIndex: _currentQuestionIndex,
+    timeRemaining: _timeRemaining,
+    isExamActive: _isExamActive,
+    isExamSubmitted: _isExamSubmitted,
+    ...sharedState
+  } = state;
+  return sharedState;
+}
+
 async function executeAuth(
   url: string,
   body: Record<string, string>,
@@ -540,20 +588,40 @@ export const useExamStore = create<ExamStore>()(
         getItem: (name) => {
           if (typeof window === 'undefined') return null;
           const userId = localStorage.getItem(`${name}-current-user-id`) || 'guest';
-          const data = localStorage.getItem(`${name}-${userId}`);
-          return data ? JSON.parse(data) : null;
+          const sharedData = localStorage.getItem(`${name}-${userId}`);
+          if (!sharedData) return null;
+
+          const parsedShared = JSON.parse(sharedData);
+          const tabSessionData = sessionStorage.getItem(getSessionStorageKey(name, userId));
+          const tabSession = tabSessionData ? JSON.parse(tabSessionData) : emptyExamSession;
+
+          return {
+            ...parsedShared,
+            state: {
+              ...omitExamSession(parsedShared.state || {}),
+              ...tabSession,
+            },
+          };
         },
         setItem: (name, value) => {
           if (typeof window === 'undefined') return;
           const state = value?.state;
           const userId = state?.currentUser?.id || 'guest';
           localStorage.setItem(`${name}-current-user-id`, userId);
-          localStorage.setItem(`${name}-${userId}`, JSON.stringify(value));
+          localStorage.setItem(`${name}-${userId}`, JSON.stringify({
+            ...value,
+            state: omitExamSession(state || {}),
+          }));
+          sessionStorage.setItem(
+            getSessionStorageKey(name, userId),
+            JSON.stringify(extractExamSession(state || {})),
+          );
         },
         removeItem: (name) => {
           if (typeof window === 'undefined') return;
           const userId = localStorage.getItem(`${name}-current-user-id`) || 'guest';
           localStorage.removeItem(`${name}-${userId}`);
+          sessionStorage.removeItem(getSessionStorageKey(name, userId));
         }
       },
       partialize: (state) => ({
