@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextApiRequest, NextApiResponse } from 'next';
 import { getPrisma } from '@/lib/prisma';
 import { findExamOwner } from '@/lib/users';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -9,6 +9,14 @@ import fs from 'fs';
 import path from 'path';
 
 const execAsync = promisify(exec);
+
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '50mb', // Set body size limit to 50mb to handle large base64 files
+    },
+  },
+};
 
 function parseBase64(dataUrl: string): { mimeType: string; base64Data: string } | null {
   if (!dataUrl.startsWith('data:')) return null;
@@ -50,7 +58,7 @@ async function runLocalPdfParser(pdfBase64: string): Promise<any> {
 
     for (const cmd of commands) {
       try {
-        const { stdout: out } = await execAsync(cmd, { maxBuffer: 1024 * 1024 * 30 }); // 30MB buffer
+        const { stdout: out } = await execAsync(cmd, { maxBuffer: 1024 * 1024 * 50 }); // 50MB buffer
         stdout = out;
         break;
       } catch (err) {
@@ -103,9 +111,13 @@ function isParsedExam(value: unknown): value is ParsedExam {
   return Array.isArray(candidate.questions) && candidate.questions.length > 0;
 }
 
-export async function POST(req: NextRequest) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ success: false, error: 'Phương thức không được hỗ trợ.' });
+  }
+
   try {
-    const { fileName = 'tai-lieu-on-tap', fileType = '', fileSizeKB = 0, parsedExam, fileData } = await req.json() as GenerateExamPayload;
+    const { fileName = 'tai-lieu-on-tap', fileType = '', fileSizeKB = 0, parsedExam, fileData } = req.body as GenerateExamPayload;
 
     let finalExamData: ParsedExam;
 
@@ -119,17 +131,17 @@ export async function POST(req: NextRequest) {
         console.log(`[Gemini Engine] Generating exam based on uploaded file: "${fileName}"...`);
         const parsed = parseBase64(fileData);
         if (!parsed) {
-          return NextResponse.json({ success: false, error: 'Dữ liệu tệp tin base64 không đúng định dạng.' }, { status: 400 });
+          return res.status(400).json({ success: false, error: 'Dữ liệu tệp tin base64 không đúng định dạng.' });
         }
         const mimeType = parsed.mimeType;
         const base64Data = parsed.base64Data;
 
         const apiKey = process.env.GEMINI_API_KEY || "";
         if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
-          return NextResponse.json({
+          return res.status(500).json({
             success: false,
             error: 'Vui lòng cung cấp GEMINI_API_KEY trong cấu hình .env để bóc tách tệp bằng AI.'
-          }, { status: 500 });
+          });
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
@@ -140,7 +152,7 @@ export async function POST(req: NextRequest) {
           }
         });
 
-      const prompt = `Bạn là một chuyên gia khảo thí và biên soạn đề kiểm tra tiếng Anh hàng đầu.
+        const prompt = `Bạn là một chuyên gia khảo thí và biên soạn đề kiểm tra tiếng Anh hàng đầu.
 Hãy phân tích tệp tài liệu được gửi kèm (Định dạng: ${mimeType}, Tên: ${fileName}).
 Tệp này có thể là đề kiểm tra, tài liệu ôn tập hoặc hình ảnh đề thi.
 Hãy bóc tách hoặc biên soạn một đề thi thử trắc nghiệm tiếng Anh từ tài liệu này.
@@ -176,49 +188,49 @@ Hãy xuất kết quả chính xác theo định dạng JSON Schema sau:
   ]
 }`;
 
-      const result = await model.generateContent([
-        {
-          inlineData: {
-            data: base64Data,
-            mimeType: mimeType
-          }
-        },
-        prompt
-      ]);
-      const textOutput = result.response.text();
-      if (!textOutput) {
-        throw new Error('Gemini không phản hồi văn bản định dạng mong muốn.');
-      }
-      
-      const generated = JSON.parse(textOutput);
-      
-      // Map questions and handle imageUrl
-      const isImage = mimeType.startsWith('image/');
-      const mappedQuestions = (generated.questions || []).map((q: any) => {
-        let qImageUrl = q.imageUrl;
-        if (qImageUrl === 'uploaded_file' && isImage) {
-          qImageUrl = fileData; // Save original uploaded image data url
+        const result = await model.generateContent([
+          {
+            inlineData: {
+              data: base64Data,
+              mimeType: mimeType
+            }
+          },
+          prompt
+        ]);
+        const textOutput = result.response.text();
+        if (!textOutput) {
+          throw new Error('Gemini không phản hồi văn bản định dạng mong muốn.');
         }
-        return {
-          content: q.content,
-          points: q.points || 2,
-          explanation: q.explanation || 'Đáp án đúng dựa vào tài liệu.',
-          imageUrl: qImageUrl || undefined,
-          imageSvg: q.imageSvg || undefined,
-          answers: q.answers || []
-        };
-      });
+        
+        const generated = JSON.parse(textOutput);
+        
+        // Map questions and handle imageUrl
+        const isImage = mimeType.startsWith('image/');
+        const mappedQuestions = (generated.questions || []).map((q: any) => {
+          let qImageUrl = q.imageUrl;
+          if (qImageUrl === 'uploaded_file' && isImage) {
+            qImageUrl = fileData; // Save original uploaded image data url
+          }
+          return {
+            content: q.content,
+            points: q.points || 2,
+            explanation: q.explanation || 'Đáp án đúng dựa vào tài liệu.',
+            imageUrl: qImageUrl || undefined,
+            imageSvg: q.imageSvg || undefined,
+            answers: q.answers || []
+          };
+        });
 
-      finalExamData = {
-        title: generated.title || fileName.replace(/\.[^/.]+$/, "").replace(/_/g, " "),
-        description: generated.description || 'Đề thi được bóc tách tự động bằng AI từ tài liệu.',
-        duration: Number(generated.duration) || 15,
-        questions: mappedQuestions
-      };
+        finalExamData = {
+          title: generated.title || fileName.replace(/\.[^/.]+$/, "").replace(/_/g, " "),
+          description: generated.description || 'Đề thi được bóc tách tự động bằng AI từ tài liệu.',
+          duration: Number(generated.duration) || 15,
+          questions: mappedQuestions
+        };
       }
     } else {
       if (!isParsedExam(parsedExam)) {
-        return NextResponse.json({ success: false, error: 'Dữ liệu đề thi đã bóc tách không hợp lệ.' }, { status: 400 });
+        return res.status(400).json({ success: false, error: 'Dữ liệu đề thi đã bóc tách không hợp lệ.' });
       }
       finalExamData = parsedExam;
     }
@@ -292,9 +304,9 @@ Hãy xuất kết quả chính xác theo định dạng JSON Schema sau:
       console.warn('[DB Error] Could not persist generated exam to SQL database, operating offline-first on frontend:', saveError);
     }
 
-    return NextResponse.json({ success: true, exam: newExam });
+    return res.status(200).json({ success: true, exam: newExam });
   } catch (err: unknown) {
     console.error('[Offline Sync Error]:', err);
-    return NextResponse.json({ success: false, error: getErrorMessage(err, 'Không thể lưu đề thi.') }, { status: 500 });
+    return res.status(500).json({ success: false, error: getErrorMessage(err, 'Không thể lưu đề thi.') });
   }
 }
