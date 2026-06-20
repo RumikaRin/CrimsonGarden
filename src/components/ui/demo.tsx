@@ -43,7 +43,7 @@ export function SplineSceneBasic() {
         />
 
         <div className="flex h-auto min-h-0 w-full flex-col lg:min-h-[480px] lg:flex-row relative z-10">
-          <div className="flex flex-1 flex-col justify-center space-y-5 p-5 sm:p-10 sm:space-y-6 lg:max-w-xl lg:p-12">
+          <div className="flex flex-1 flex-col justify-center space-y-4 p-4 sm:p-10 sm:space-y-6 lg:max-w-xl lg:p-12">
             <div
               className={cn(
                 'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[10px] font-sans font-bold tracking-wider uppercase w-fit border',
@@ -67,7 +67,7 @@ export function SplineSceneBasic() {
               </p>
             </div>
 
-            <ul className="space-y-2.5">
+            <ul className="hidden space-y-2.5 sm:block">
               {benefits.map((item) => (
                 <li key={item} className="flex items-start gap-3 text-xs font-sans text-[var(--text-secondary)] sm:text-sm">
                   <span className={cn('w-1.5 h-1.5 rounded-full mt-2 shrink-0', dotColor)} />
@@ -76,7 +76,7 @@ export function SplineSceneBasic() {
               ))}
             </ul>
 
-            <div className="border-t border-[var(--border-default)] pt-5 space-y-3 max-w-sm">
+            <div className="border-t border-[var(--border-default)] pt-4 space-y-3 max-w-sm sm:pt-5">
               <div className="space-y-1">
                 <p className="font-serif font-bold text-[var(--text-primary)] text-base">Bắt đầu ôn luyện</p>
                 <p className="text-xs font-sans text-[var(--text-secondary)]">
@@ -99,7 +99,7 @@ export function SplineSceneBasic() {
 
           <div
             className={cn(
-              'flex-1 relative aspect-[4/3] lg:aspect-auto min-h-[240px] sm:min-h-[320px] lg:min-h-0 bg-radial flex items-center justify-center',
+              'flex-1 relative aspect-[16/8] lg:aspect-auto min-h-[150px] sm:min-h-[320px] lg:min-h-0 bg-radial flex items-center justify-center',
               isDarkTheme
                 ? 'from-white/5 via-white/[0.02] to-transparent'
                 : isGreenTheme
@@ -107,7 +107,7 @@ export function SplineSceneBasic() {
                 : 'from-[#DC143C]/5 via-[#1A1814]/5 to-transparent',
             )}
           >
-            <div className="absolute inset-4 sm:inset-6 rounded-2xl overflow-hidden border border-[var(--border-default)] bg-[var(--surface-raised)]/70 backdrop-blur-sm shadow-xl">
+            <div className="absolute inset-2 sm:inset-6 rounded-xl sm:rounded-2xl overflow-hidden border border-[var(--border-default)] bg-[var(--surface-raised)]/70 backdrop-blur-sm shadow-xl">
               <SplineScene
                 scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
                 className="w-full h-full"

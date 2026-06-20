@@ -9,6 +9,78 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import fs from 'fs';
+
+const execAsync = promisify(exec);
+
+function parseBase64(dataUrl: string): { mimeType: string; base64Data: string } | null {
+  if (!dataUrl.startsWith('data:')) return null;
+  const commaIndex = dataUrl.indexOf(',');
+  if (commaIndex === -1) return null;
+  const mediaSpec = dataUrl.substring(5, commaIndex);
+  const parts = mediaSpec.split(';');
+  if (!parts.includes('base64')) return null;
+  return {
+    mimeType: parts[0] || '',
+    base64Data: dataUrl.substring(commaIndex + 1)
+  };
+}
+
+async function runLocalPdfParser(pdfBase64: string): Promise<any> {
+  const tempDir = path.join(process.cwd(), 'temp_uploads');
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
+  }
+  const tempFilePath = path.join(tempDir, `temp_upload_${Date.now()}.pdf`);
+  
+  const parsed = parseBase64(pdfBase64);
+  if (!parsed) {
+    throw new Error('Dữ liệu tệp tin base64 không đúng định dạng.');
+  }
+  const base64Data = parsed.base64Data;
+  fs.writeFileSync(tempFilePath, Buffer.from(base64Data, 'base64'));
+
+  try {
+    const pythonScriptPath = path.join(process.cwd(), 'src', 'lib', 'pdf_parser.py');
+    const commands = [
+      `C:\\Users\\sansm\\AppData\\Local\\Microsoft\\WindowsApps\\python.exe "${pythonScriptPath}" "${tempFilePath}"`,
+      `python "${pythonScriptPath}" "${tempFilePath}"`,
+      `python3 "${pythonScriptPath}" "${tempFilePath}"`
+    ];
+
+    let stdout = '';
+    let lastError: any = null;
+
+    for (const cmd of commands) {
+      try {
+        const { stdout: out } = await execAsync(cmd, { maxBuffer: 1024 * 1024 * 30 }); // 30MB buffer
+        stdout = out;
+        break;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    if (!stdout && lastError) {
+      throw new Error(`Lỗi thực thi script Python: ${lastError.message}`);
+    }
+
+    const result = JSON.parse(stdout.trim());
+    if (!result.success) {
+      throw new Error(result.error || 'Lỗi bóc tách PDF không xác định.');
+    }
+
+    return result.exam;
+  } finally {
+    if (fs.existsSync(tempFilePath)) {
+      try {
+        fs.unlinkSync(tempFilePath);
+      } catch (e) {}
+    }
+  }
+}
 
 // Load environmental parameters
 dotenv.config();
@@ -385,7 +457,7 @@ app.patch('/api/auth/profile', async (req, res) => {
 
 // API 1: Auto-generate dynamic exams based on filenames with Gemini 3.5 Flash
 app.post('/api/generate-exam', async (req, res) => {
-  const { fileName, fileType, fileSizeKB } = req.body;
+  const { fileName, fileType, fileSizeKB, fileData, parsedExam } = req.body;
 
   if (!fileName) {
     return res.status(400).json({ success: false, error: 'Tên tệp tin là bắt buộc.' });
@@ -400,10 +472,146 @@ app.post('/api/generate-exam', async (req, res) => {
   }
 
   try {
-    console.log(`[Gemini Engine] Generating exam based on custom parsed metadata: "${fileName}"...`);
+    let finalExamData: any = null;
 
-    // Prompt Gemini to build high-quality Vietnamese/English test containing multiple answers
-    const prompt = `Bạn là một chuyên gia khảo thí và biên soạn đề kiểm tra tiếng Anh hàng đầu.
+    if (fileData) {
+      const isPdf = fileType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf');
+      
+      if (isPdf) {
+        console.log(`[Local Parser] Parsing PDF locally: "${fileName}"...`);
+        finalExamData = await runLocalPdfParser(fileData);
+      } else {
+        console.log(`[Gemini Engine] Generating exam based on uploaded file: "${fileName}"...`);
+        const parsed = parseBase64(fileData);
+        if (!parsed) {
+          return res.status(400).json({ success: false, error: 'Dữ liệu tệp tin base64 không đúng định dạng.' });
+        }
+        const mimeType = parsed.mimeType;
+        const base64Data = parsed.base64Data;
+
+        const prompt = `Bạn là một chuyên gia khảo thí và biên soạn đề kiểm tra tiếng Anh hàng đầu.
+Hãy phân tích tệp tài liệu được gửi kèm (Định dạng: ${mimeType}, Tên: ${fileName}).
+Tệp này có thể là đề kiểm tra, tài liệu ôn tập hoặc hình ảnh đề thi.
+Hãy bóc tách hoặc biên soạn một đề thi thử trắc nghiệm tiếng Anh từ tài liệu này.
+
+Yêu cầu chi tiết:
+1. Đọc kỹ nội dung văn bản và bất kỳ hình ảnh nào trong tài liệu.
+2. Thiết kế đề thi gồm:
+    - Tiêu đề đề thi sinh động, hấp dẫn bằng tiếng Việt.
+    - Mô tả ngắn giới thiệu chủ đề ôn tập.
+    - Thời gian làm bài hợp lý (tính toán dựa trên số lượng câu hỏi thực tế được bóc tách, trung bình 1.5 đến 2 phút cho mỗi câu).
+    - Hãy trích xuất và bóc tách nhiều câu hỏi nhất có thể từ tệp tài liệu này (tối đa khoảng 30 đến 40 câu hỏi trắc nghiệm phân bố đều từ đầu đến cuối tài liệu để đảm bảo bao phủ đầy đủ kiến thức và không vượt quá giới hạn ký tự phản hồi của hệ thống). Nếu tài liệu không chứa các câu hỏi trắc nghiệm sẵn có, hãy tự động biên soạn khoảng 20 đến 30 câu hỏi trắc nghiệm tiếng Anh chất lượng cao dựa trên nội dung/chủ đề ôn tập của tài liệu.
+    - Mỗi câu hỏi có 4 lựa chọn (A, B, C, D) với ĐÁP ÁN ĐÚNG DUY NHẤT và GIẢI THÍCH chi tiết vì sao đúng bằng tiếng Việt.
+3. QUAN TRỌNG VỀ HÌNH ẢNH:
+   - Nếu tài liệu là hình ảnh duy nhất (ví dụ: ảnh chụp 1 trang đề thi) hoặc nếu câu hỏi đó liên quan trực tiếp đến hình ảnh duy nhất này, hãy đặt trường "imageUrl" của câu hỏi đó là "uploaded_file".
+   - Nếu trong tài liệu có hình ảnh/hình minh họa/biển báo/sơ đồ cụ thể cho từng câu hỏi, hãy thiết kế lại hình ảnh minh họa đó thành mã nguồn SVG tự dựng (chứa trong trường "imageSvg" của câu hỏi đó dưới dạng một chuỗi HTML SVG hoàn chỉnh, tự co giãn responsive và có thiết kế hiện đại, tinh tế với màu sắc chalk #F2EFE7 và crimson #DC143C). Nếu không cần hình ảnh cho câu hỏi đó, hãy bỏ trống trường "imageUrl" và "imageSvg".
+
+Hãy xuất kết quả chính xác theo định dạng JSON Schema sau:
+{
+  "title": string,
+  "description": string,
+  "duration": number,
+  "questions": [
+    {
+      "content": string,
+      "explanation": string,
+      "points": number,
+      "imageUrl": string,
+      "imageSvg": string,
+      "answers": [
+        { "content": string, "isCorrect": boolean }
+      ]
+    }
+  ]
+}`;
+
+      const contents: any[] = [
+        {
+          inlineData: {
+            data: base64Data,
+            mimeType: mimeType
+          }
+        },
+        prompt
+      ];
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.5-flash',
+        contents: contents,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              description: { type: Type.STRING },
+              duration: { type: Type.INTEGER },
+              questions: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    content: { type: Type.STRING },
+                    explanation: { type: Type.STRING },
+                    points: { type: Type.INTEGER },
+                    imageUrl: { type: Type.STRING },
+                    imageSvg: { type: Type.STRING },
+                    answers: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          content: { type: Type.STRING },
+                          isCorrect: { type: Type.BOOLEAN }
+                        },
+                        required: ['content', 'isCorrect']
+                      }
+                    }
+                  },
+                  required: ['content', 'explanation', 'answers']
+                }
+              }
+            },
+            required: ['title', 'description', 'duration', 'questions']
+          }
+        }
+      });
+
+      const textOutput = response.text;
+      if (!textOutput) {
+        throw new Error('Gemini không phản hồi văn bản định dạng mong muốn.');
+      }
+
+      const generated = JSON.parse(textOutput);
+      const isImage = mimeType.startsWith('image/');
+      const mappedQuestions = (generated.questions || []).map((q: any) => {
+        let qImageUrl = q.imageUrl;
+        if (qImageUrl === 'uploaded_file' && isImage) {
+          qImageUrl = fileData;
+        }
+        return {
+          content: q.content,
+          points: q.points || 2,
+          explanation: q.explanation || 'Đáp án đúng dựa vào tài liệu.',
+          imageUrl: qImageUrl || undefined,
+          imageSvg: q.imageSvg || undefined,
+          answers: q.answers || []
+        };
+      });
+
+      finalExamData = {
+        title: generated.title || fileName.replace(/\.[^/.]+$/, "").replace(/_/g, " "),
+        description: generated.description || 'Đề thi được bóc tách tự động bằng AI từ tài liệu.',
+        duration: Number(generated.duration) || 15,
+        questions: mappedQuestions
+      };
+      }
+    } else if (parsedExam) {
+      finalExamData = parsedExam;
+    } else {
+      console.log(`[Gemini Engine] Generating exam based on custom parsed metadata: "${fileName}"...`);
+
+      const prompt = `Bạn là một chuyên gia khảo thí và biên soạn đề kiểm tra tiếng Anh hàng đầu.
 Học viên đã tải lên một tài liệu tên là: "${fileName}" (Định dạng: ${fileType}, Kích thước: ${fileSizeKB} KB).
 Hãy biên soạn và tự động thiết kế hoàn chỉnh một đề thi thử trắc nghiệm tiếng Anh tương ứng với nội dung hoặc trình độ ghi trong tên tệp tin này hoặc ngẫu nhiên từ trình độ THPT Quốc Gia (nếu không có thông tin rõ ràng).
 
@@ -431,56 +639,58 @@ Hãy xuất kết quả chính xác theo định dạng JSON Schema sau:
   ]
 }`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING },
-            description: { type: Type.STRING },
-            duration: { type: Type.INTEGER },
-            questions: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  content: { type: Type.STRING },
-                  explanation: { type: Type.STRING },
-                  points: { type: Type.INTEGER },
-                  answers: {
-                    type: Type.ARRAY,
-                    items: {
-                      type: Type.OBJECT,
-                      properties: {
-                        content: { type: Type.STRING },
-                        isCorrect: { type: Type.BOOLEAN }
-                      },
-                      required: ['content', 'isCorrect']
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              description: { type: Type.STRING },
+              duration: { type: Type.INTEGER },
+              questions: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    content: { type: Type.STRING },
+                    explanation: { type: Type.STRING },
+                    points: { type: Type.INTEGER },
+                    answers: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          content: { type: Type.STRING },
+                          isCorrect: { type: Type.BOOLEAN }
+                        },
+                        required: ['content', 'isCorrect']
+                      }
                     }
-                  }
-                },
-                required: ['content', 'explanation', 'answers']
+                  },
+                  required: ['content', 'explanation', 'answers']
+                }
               }
-            }
-          },
-          required: ['title', 'description', 'duration', 'questions']
+            },
+            required: ['title', 'description', 'duration', 'questions']
+          }
         }
+      });
+
+      const textOutput = response.text;
+      if (!textOutput) {
+        throw new Error('Gemini không phản hồi văn bản định dạng mong muốn.');
       }
-    });
 
-    const textOutput = response.text;
-    if (!textOutput) {
-      throw new Error('Gemini không phản hồi văn bản định dạng mong muốn.');
+      const generated = JSON.parse(textOutput);
+      finalExamData = generated;
     }
-
-    const generated = JSON.parse(textOutput);
 
     // Dynamic ID Mapping to perfectly fit the UI / types.ts requirements
     const examId = `gen-exam-${Date.now()}`;
-    const mappedQuestions = (generated.questions || []).map((q: any, qIdx: number) => {
+    const mappedQuestions = (finalExamData.questions || []).map((q: any, qIdx: number) => {
       const qId = `gen-q-${qIdx}-${Date.now()}`;
       return {
         id: qId,
@@ -488,6 +698,8 @@ Hãy xuất kết quả chính xác theo định dạng JSON Schema sau:
         points: q.points || 2,
         order: qIdx + 1,
         explanation: q.explanation || 'Đáp án đúng dựa theo cấu trúc ngữ pháp.',
+        imageUrl: q.imageUrl || null,
+        imageSvg: q.imageSvg || null,
         answers: (q.answers || []).map((a: any, aIdx: number) => ({
           id: `gen-a-${qIdx}-${aIdx}-${Date.now()}`,
           content: a.content,
@@ -498,9 +710,9 @@ Hãy xuất kết quả chính xác theo định dạng JSON Schema sau:
 
     const newExam = {
       id: examId,
-      title: generated.title || `Đề Ôn Tập Từ Vựng - ${fileName}`,
-      description: generated.description || 'Đề khảo thí thiết kế sinh động bằng trí tuệ nhân tạo Gemini 3.5.',
-      duration: Number(generated.duration) || 15,
+      title: finalExamData.title || `Đề Ôn Tập Từ Vựng - ${fileName}`,
+      description: finalExamData.description || 'Đề khảo thí thiết kế sinh động bằng trí tuệ nhân tạo Gemini 3.5.',
+      duration: Number(finalExamData.duration) || 15,
       createdAt: new Date().toISOString(),
       questions: mappedQuestions
     };
@@ -527,6 +739,8 @@ Hãy xuất kết quả chính xác theo định dạng JSON Schema sau:
               explanation: mq.explanation,
               points: mq.points,
               order: mq.order,
+              imageUrl: mq.imageUrl || null,
+              imageSvg: mq.imageSvg || null,
               answers: {
                 create: mq.answers.map((ma) => ({
                   id: ma.id,

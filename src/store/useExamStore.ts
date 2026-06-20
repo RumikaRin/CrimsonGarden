@@ -32,6 +32,8 @@ interface ExamStore {
 
   // Exams database
   exams: Exam[];
+  deletedExamIds: string[];
+  pendingExamIds: string[];
   vocabularyPacks: Record<string, VocabularyWord[]>;
   attempts: ExamAttempt[];
   gameScores: GameScore[];
@@ -74,7 +76,7 @@ interface ExamStore {
   resetExamSession: () => void;
   addGameScore: (score: GameScore) => void;
   addMockAttempt: (attempt: ExamAttempt) => void;
-  deleteExam: (examId: string) => void;
+  deleteExam: (examId: string) => Promise<{ success: boolean; error?: string }>;
   addVocabularyPack: (categoryName: string, words: VocabularyWord[]) => void;
   syncOfflineData: () => Promise<void>;
 }
@@ -104,9 +106,29 @@ const emptyExamSession: PersistedExamSession = {
 
 const getSessionStorageKey = (name: string, userId: string) => `${name}-${userId}-tab-session`;
 
+function stripLargeImages(exams: any[]): any[] {
+  if (!exams || !Array.isArray(exams)) return exams;
+  return exams.map((exam) => {
+    if (!exam || !exam.questions) return exam;
+    return {
+      ...exam,
+      questions: exam.questions.map((q: any) => {
+        const cleaned: any = { ...q };
+        if (q.imageUrl && q.imageUrl.length > 1000) {
+          delete cleaned.imageUrl;
+        }
+        if (q.imageSvg && q.imageSvg.length > 1000) {
+          delete cleaned.imageSvg;
+        }
+        return cleaned;
+      })
+    };
+  });
+}
+
 function extractExamSession(state: Partial<ExamStore>): PersistedExamSession {
   return {
-    shuffledExam: state.shuffledExam ?? null,
+    shuffledExam: state.shuffledExam ? stripLargeImages([state.shuffledExam])[0] : null,
     activeExamId: state.activeExamId ?? null,
     activeAnswers: state.activeAnswers ?? {},
     currentQuestionIndex: state.currentQuestionIndex ?? 0,
@@ -217,6 +239,8 @@ export const useExamStore = create<ExamStore>()(
 
       isExamsFetched: false,
       exams: initialExams,
+      deletedExamIds: [],
+      pendingExamIds: [],
       vocabularyPacks: initialVocabularyPacks,
       attempts: initialAttempts,
       gameScores: initialGameScores,
@@ -252,13 +276,16 @@ export const useExamStore = create<ExamStore>()(
           if (res.ok) {
             const data = await res.json();
             if (data.success && data.exams) {
-              const currentExams = get().exams;
-              const newExams = [...data.exams];
-              currentExams.forEach(ce => {
-                if (!newExams.find((ne: Exam) => ne.id === ce.id)) {
-                  newExams.push(ce);
+              const { exams: currentExams, deletedExamIds, pendingExamIds } = get();
+              const deletedIds = new Set(deletedExamIds);
+              const pendingIds = new Set(pendingExamIds);
+              const newExams = (data.exams as Exam[]).filter((exam) => !deletedIds.has(exam.id));
+              currentExams.forEach((exam) => {
+                if (pendingIds.has(exam.id) && !deletedIds.has(exam.id) && !newExams.some((cloudExam) => cloudExam.id === exam.id)) {
+                  newExams.push(exam);
                 }
               });
+              // Cloud is authoritative except for exams explicitly waiting to sync.
               set({ exams: newExams, isExamsFetched: true });
             }
           }
@@ -269,7 +296,11 @@ export const useExamStore = create<ExamStore>()(
 
       addExam: (exam: Exam) => {
         set((state) => ({
-          exams: [exam, ...state.exams]
+          exams: [exam, ...state.exams.filter((existingExam) => existingExam.id !== exam.id)],
+          deletedExamIds: state.deletedExamIds.filter((id) => id !== exam.id),
+          pendingExamIds: state.pendingExamIds.includes(exam.id)
+            ? state.pendingExamIds
+            : [...state.pendingExamIds, exam.id],
         }));
 
         // Push exam to server for Neon persistence
@@ -277,6 +308,13 @@ export const useExamStore = create<ExamStore>()(
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ exam })
+        }).then(async (res) => {
+          const data = await res.json() as { success?: boolean };
+          if (res.ok && data.success) {
+            set((state) => ({
+              pendingExamIds: state.pendingExamIds.filter((id) => id !== exam.id),
+            }));
+          }
         }).catch((err) => {
           console.warn('Exam server sync error:', err);
         });
@@ -513,10 +551,33 @@ export const useExamStore = create<ExamStore>()(
         }));
       },
 
-      deleteExam: (examId: string) => {
-        set((state) => ({
-          exams: state.exams.filter((e) => e.id !== examId)
-        }));
+      deleteExam: async (examId: string) => {
+        try {
+          const res = await fetch('/api/exam/delete', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ examId }),
+          });
+          const data = await res.json() as { success?: boolean; error?: string };
+
+          if (!res.ok || !data.success) {
+            return { success: false, error: data.error || 'Không thể xóa đề thi.' };
+          }
+
+          set((state) => ({
+            exams: state.exams.filter((exam) => exam.id !== examId),
+            attempts: state.attempts.filter((attempt) => attempt.examId !== examId),
+            pendingExamIds: state.pendingExamIds.filter((id) => id !== examId),
+            deletedExamIds: state.deletedExamIds.includes(examId)
+              ? state.deletedExamIds
+              : [...state.deletedExamIds, examId],
+            ...(state.activeExamId === examId ? emptyExamSession : {}),
+          }));
+          return { success: true };
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : 'Không thể kết nối máy chủ.';
+          return { success: false, error: message };
+        }
       },
 
       addVocabularyPack: (categoryName: string, words: VocabularyWord[]) => {
@@ -529,9 +590,30 @@ export const useExamStore = create<ExamStore>()(
       },
 
       syncOfflineData: async () => {
-        const { attempts, gameScores } = get();
+        const { exams, pendingExamIds, attempts, gameScores } = get();
+
+        // 1. Sync exams created while offline
+        for (const examId of pendingExamIds) {
+          const exam = exams.find((item) => item.id === examId);
+          if (!exam) continue;
+          try {
+            const res = await fetch('/api/exam/create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ exam }),
+            });
+            const data = await res.json() as { success?: boolean };
+            if (res.ok && data.success) {
+              set((state) => ({
+                pendingExamIds: state.pendingExamIds.filter((id) => id !== examId),
+              }));
+            }
+          } catch (err) {
+            console.warn(`Sync exam ${examId} error:`, err);
+          }
+        }
         
-        // 1. Sync attempts
+        // 2. Sync attempts
         for (const att of attempts) {
           if (!att.synced) {
             try {
@@ -556,7 +638,7 @@ export const useExamStore = create<ExamStore>()(
           }
         }
 
-        // 2. Sync game scores
+        // 3. Sync game scores
         for (const score of gameScores) {
           if (!score.synced) {
             try {
@@ -587,41 +669,60 @@ export const useExamStore = create<ExamStore>()(
       storage: {
         getItem: (name) => {
           if (typeof window === 'undefined') return null;
-          const userId = localStorage.getItem(`${name}-current-user-id`) || 'guest';
-          const sharedData = localStorage.getItem(`${name}-${userId}`);
-          if (!sharedData) return null;
-
-          const parsedShared = JSON.parse(sharedData);
-          const tabSessionData = sessionStorage.getItem(getSessionStorageKey(name, userId));
-          const tabSession = tabSessionData ? JSON.parse(tabSessionData) : emptyExamSession;
-
-          return {
-            ...parsedShared,
-            state: {
-              ...omitExamSession(parsedShared.state || {}),
-              ...tabSession,
-            },
-          };
+          try {
+            const userId = localStorage.getItem(`${name}-current-user-id`) || 'guest';
+            const sharedData = localStorage.getItem(`${name}-${userId}`);
+            if (!sharedData) return null;
+  
+            const parsedShared = JSON.parse(sharedData);
+            const tabSessionData = sessionStorage.getItem(getSessionStorageKey(name, userId));
+            const tabSession = tabSessionData ? JSON.parse(tabSessionData) : emptyExamSession;
+  
+            return {
+              ...parsedShared,
+              state: {
+                ...omitExamSession(parsedShared.state || {}),
+                ...tabSession,
+              },
+            };
+          } catch (err) {
+            console.warn('[Storage Error] Failed to retrieve state from storage:', err);
+            return null;
+          }
         },
         setItem: (name, value) => {
           if (typeof window === 'undefined') return;
-          const state = value?.state;
-          const userId = state?.currentUser?.id || 'guest';
-          localStorage.setItem(`${name}-current-user-id`, userId);
-          localStorage.setItem(`${name}-${userId}`, JSON.stringify({
-            ...value,
-            state: omitExamSession(state || {}),
-          }));
-          sessionStorage.setItem(
-            getSessionStorageKey(name, userId),
-            JSON.stringify(extractExamSession(state || {})),
-          );
+          try {
+            const state = value?.state;
+            const userId = state?.currentUser?.id || 'guest';
+  
+            const cleanedState = state ? {
+              ...state,
+              exams: stripLargeImages(state.exams)
+            } : {};
+  
+            localStorage.setItem(`${name}-current-user-id`, userId);
+            localStorage.setItem(`${name}-${userId}`, JSON.stringify({
+              ...value,
+              state: omitExamSession(cleanedState),
+            }));
+            sessionStorage.setItem(
+              getSessionStorageKey(name, userId),
+              JSON.stringify(extractExamSession(state || {})),
+            );
+          } catch (err) {
+            console.warn('[Storage Error] Failed to persist state to storage:', err);
+          }
         },
         removeItem: (name) => {
           if (typeof window === 'undefined') return;
-          const userId = localStorage.getItem(`${name}-current-user-id`) || 'guest';
-          localStorage.removeItem(`${name}-${userId}`);
-          sessionStorage.removeItem(getSessionStorageKey(name, userId));
+          try {
+            const userId = localStorage.getItem(`${name}-current-user-id`) || 'guest';
+            localStorage.removeItem(`${name}-${userId}`);
+            sessionStorage.removeItem(getSessionStorageKey(name, userId));
+          } catch (err) {
+            console.warn('[Storage Error] Failed to remove state from storage:', err);
+          }
         }
       },
       partialize: (state) => ({
@@ -629,6 +730,8 @@ export const useExamStore = create<ExamStore>()(
         currentUser: state.currentUser,
         activityDates: state.activityDates,
         exams: state.exams,
+        deletedExamIds: state.deletedExamIds,
+        pendingExamIds: state.pendingExamIds,
         vocabularyPacks: state.vocabularyPacks,
         attempts: state.attempts,
         gameScores: state.gameScores,

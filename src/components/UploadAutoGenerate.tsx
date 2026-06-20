@@ -264,7 +264,7 @@ export default function UploadAutoGenerate() {
     }
   };
 
-  // Submit and generate using local parse engine
+  // Submit and generate using local parse engine or server Gemini engine
   const handleGenerateExam = async () => {
     if (!selectedFile || !fileObject) return;
 
@@ -272,28 +272,34 @@ export default function UploadAutoGenerate() {
     setErrorMessage(null);
     setSuccessMessage(null);
 
+    const isImage = /\.(png|jpg|jpeg|gif|webp)$/i.test(selectedFile.name);
+    const isPdf = /\.pdf$/i.test(selectedFile.name);
+    const isTextOrCsv = /\.(txt|csv)$/i.test(selectedFile.name);
+
     const reader = new FileReader();
     reader.onload = async () => {
       try {
-        const text = reader.result as string;
+        let payload: any = {
+          fileName: selectedFile.name,
+          fileType: selectedFile.type || (isPdf ? 'application/pdf' : isImage ? 'image/jpeg' : ''),
+          fileSizeKB: selectedFile.size
+        };
 
-        // Pick parse algorithm based on extension
-        const isExcel = selectedFile.type === '.csv' || selectedFile.type === '.xlsx';
-        const parsedExam = isExcel ? parseCSV(text) : parseTXT(text);
-
-        // Clean title
-        parsedExam.title = selectedFile.name.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
+        if (isTextOrCsv) {
+          const text = reader.result as string;
+          const isExcel = selectedFile.name.toLowerCase().endsWith('.csv');
+          const parsedExam = isExcel ? parseCSV(text) : parseTXT(text);
+          parsedExam.title = selectedFile.name.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
+          payload.parsedExam = parsedExam;
+        } else {
+          payload.fileData = reader.result as string; // base64 data url
+        }
 
         // Save to DB via Prisma API sync
         const response = await fetch('/api/generate-exam', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fileName: selectedFile.name,
-            fileType: selectedFile.type,
-            fileSizeKB: selectedFile.size,
-            parsedExam: parsedExam // Direct JSON transfer
-          })
+          body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
@@ -325,7 +331,11 @@ export default function UploadAutoGenerate() {
       setIsGenerating(false);
     };
 
-    reader.readAsText(fileObject);
+    if (isTextOrCsv) {
+      reader.readAsText(fileObject);
+    } else {
+      reader.readAsDataURL(fileObject);
+    }
   };
 
   const handleAutoGenerateRandom = async () => {
@@ -418,7 +428,7 @@ export default function UploadAutoGenerate() {
             <input
               type="file"
               id="file-upload-input"
-              accept=".csv,.txt"
+              accept=".csv,.txt,.pdf,.png,.jpg,.jpeg"
               onChange={handleFileInput}
               className="hidden"
             />
@@ -440,7 +450,7 @@ export default function UploadAutoGenerate() {
                     </label>
                   </p>
                   <p className="text-xs text-neutral-500 font-mono">
-                    Hỗ trợ tệp cấu trúc Word (.txt) hoặc Excel (.csv) lên đến 20MB
+                    Hỗ trợ tệp Word (.txt), Excel (.csv), tài liệu (.pdf) hoặc hình ảnh (.png, .jpg, .jpeg) lên đến 20MB
                   </p>
                 </div>
               </div>
@@ -452,6 +462,10 @@ export default function UploadAutoGenerate() {
                 >
                   {selectedFile.type === '.csv' ? (
                     <FileSpreadsheet className="w-8 h-8" />
+                  ) : selectedFile.type === '.pdf' ? (
+                    <FileText className="w-8 h-8 text-red-500" />
+                  ) : (selectedFile.type === '.png' || selectedFile.type === '.jpg' || selectedFile.type === '.jpeg') ? (
+                    <FileText className="w-8 h-8 text-emerald-500" />
                   ) : (
                     <FileText className="w-8 h-8" />
                   )}

@@ -39,6 +39,8 @@ ChartJS.register(
 
 export default function AdminStatsDashboard() {
   const { exams, attempts, gameScores, deleteExam, theme } = useExamStore();
+  const [deletingExamId, setDeletingExamId] = React.useState<string | null>(null);
+  const [deleteError, setDeleteError] = React.useState<string | null>(null);
   const isGreenTheme = useIsGreen();
   const isDark = theme === 'dark';
   const accent = 'var(--accent)';
@@ -83,6 +85,16 @@ export default function AdminStatsDashboard() {
     if (t.includes('anh') || t.includes('english') || t.includes('thpt')) return 'Tiếng Anh';
     if (t.includes('nextauth') || t.includes('database') || t.includes('prism') || t.includes('css') || t.includes('tin') || t.includes('html') || t.includes('excel')) return 'CNTT';
     return 'Tổng hợp';
+  };
+
+  const handleDeleteExam = async (examId: string) => {
+    setDeletingExamId(examId);
+    setDeleteError(null);
+    const result = await deleteExam(examId);
+    if (!result.success) {
+      setDeleteError(result.error || 'Không thể xóa đề thi.');
+    }
+    setDeletingExamId(null);
   };
 
   // 2. Chart Config 1: Line Chart (Exam Attempts & Scores trend mapped to 100%)
@@ -365,6 +377,11 @@ export default function AdminStatsDashboard() {
             <span>ACTIVE POSTGRESQL ENGINE</span>
           </div>
         </div>
+        {deleteError && (
+          <div role="alert" className="border-b border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-600 sm:px-6">
+            {deleteError}
+          </div>
+        )}
 
         {/* Table representation */}
         <div className="overflow-x-auto">
@@ -398,9 +415,10 @@ export default function AdminStatsDashboard() {
                     <td className="p-4 font-mono font-medium">{exam.duration} phút</td>
                     <td className="p-4 text-right pr-6">
                       <button
-                        onClick={() => deleteExam(exam.id)}
-                        className="p-2 text-neutral-400 rounded-lg transition-colors cursor-pointer hover:bg-red-50 hover:text-red-500"
-                        title="Xóa đề thi khỏi cơ sở dữ liệu"
+                        onClick={() => void handleDeleteExam(exam.id)}
+                        disabled={deletingExamId !== null}
+                        className="p-2 text-neutral-400 rounded-lg transition-colors cursor-pointer hover:bg-red-50 hover:text-red-500 disabled:cursor-wait disabled:opacity-40"
+                        title={deletingExamId === exam.id ? 'Đang xóa đề thi...' : 'Xóa đề thi khỏi cơ sở dữ liệu'}
                       >
                         <Trash2 className="w-4 h-5" />
                       </button>

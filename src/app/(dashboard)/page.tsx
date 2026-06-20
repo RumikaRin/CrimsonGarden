@@ -63,19 +63,19 @@ export default function HomePage() {
     <motion.main
       initial="initial"
       animate="animate"
-      className="space-y-7 sm:space-y-10"
+      className="space-y-6 sm:space-y-10"
     >
       <motion.section variants={fadeUp}>
         <SplineSceneBasic />
       </motion.section>
 
-      <motion.header variants={fadeUp} className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-end border-b border-[var(--border-default)] pb-6 sm:pb-8">
+      <motion.header variants={fadeUp} className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end border-b border-[var(--border-default)] pb-5 sm:pb-8">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--accent)]">Crimson Academy</p>
-          <h1 className="mt-3 max-w-3xl font-serif text-3xl font-bold tracking-tight text-[var(--text-primary)] sm:text-5xl">
+          <h1 className="mt-2 max-w-3xl font-serif text-[1.75rem] font-bold leading-tight tracking-tight text-[var(--text-primary)] sm:mt-3 sm:text-5xl">
             Học, chơi và chinh phục bảng xếp hạng.
           </h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
+          <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--text-secondary)] sm:mt-3">
             Chọn một hoạt động ngắn để ôn tập hoặc tích thêm điểm thi đua hôm nay.
           </p>
         </div>
@@ -94,10 +94,10 @@ export default function HomePage() {
           { label: 'Điểm thi tốt nhất', value: bestExamScore.toFixed(1), suffix: '/10', icon: Trophy },
           { label: 'Điểm game tốt nhất', value: bestGameScore, suffix: 'đ', icon: Gamepad2 },
         ].map(({ label, value, suffix, icon: Icon }, index) => (
-          <div key={label} className={cn('p-4 sm:p-7', index > 0 && 'border-t border-[var(--border-default)] sm:border-l sm:border-t-0')}>
+          <div key={label} className={cn('grid grid-cols-[auto_1fr_auto] items-center gap-3 p-4 sm:block sm:p-7', index > 0 && 'border-t border-[var(--border-default)] sm:border-l sm:border-t-0')}>
             <Icon className="h-5 w-5 text-[var(--accent)]" />
-            <p className="mt-4 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] sm:mt-7">{label}</p>
-            <p className="mt-1 font-mono text-3xl font-bold text-[var(--text-primary)]">{value}<span className="ml-1 text-sm text-[var(--text-secondary)]">{suffix}</span></p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] sm:mt-7">{label}</p>
+            <p className="font-mono text-2xl font-bold text-[var(--text-primary)] sm:mt-1 sm:text-3xl">{value}<span className="ml-1 text-xs text-[var(--text-secondary)] sm:text-sm">{suffix}</span></p>
           </div>
         ))}
       </motion.section>
@@ -115,10 +115,10 @@ export default function HomePage() {
               type="button"
               key={path}
               onClick={() => router.push(path)}
-              className="group min-h-40 rounded-2xl border border-[var(--border-default)] bg-[var(--card-bg)] p-5 text-left transition-all hover:-translate-y-0.5 hover:border-[var(--accent)]/40 hover:shadow-[var(--card-shadow)]"
+              className="group min-h-0 rounded-2xl border border-[var(--border-default)] bg-[var(--card-bg)] p-4 text-left transition-all hover:-translate-y-0.5 hover:border-[var(--accent)]/40 hover:shadow-[var(--card-shadow)] sm:min-h-40 sm:p-5"
             >
               <Icon className="h-5 w-5 text-[var(--accent)]" />
-              <span className="mt-10 block font-serif text-lg font-bold text-[var(--text-primary)]">{label}</span>
+              <span className="mt-5 block font-serif text-lg font-bold text-[var(--text-primary)] sm:mt-10">{label}</span>
               <span className="mt-1 flex items-center justify-between text-xs text-[var(--text-secondary)]">
                 {note}<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </span>

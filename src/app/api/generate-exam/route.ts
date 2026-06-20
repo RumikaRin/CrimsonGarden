@@ -1,10 +1,84 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { findExamOwner } from '@/lib/users';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { Answer, Exam, Question } from '@/types';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import fs from 'fs';
+import path from 'path';
+
+const execAsync = promisify(exec);
+
+function parseBase64(dataUrl: string): { mimeType: string; base64Data: string } | null {
+  if (!dataUrl.startsWith('data:')) return null;
+  const commaIndex = dataUrl.indexOf(',');
+  if (commaIndex === -1) return null;
+  const mediaSpec = dataUrl.substring(5, commaIndex);
+  const parts = mediaSpec.split(';');
+  if (!parts.includes('base64')) return null;
+  return {
+    mimeType: parts[0] || '',
+    base64Data: dataUrl.substring(commaIndex + 1)
+  };
+}
+
+async function runLocalPdfParser(pdfBase64: string): Promise<any> {
+  const tempDir = path.join(process.cwd(), 'temp_uploads');
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
+  }
+  const tempFilePath = path.join(tempDir, `temp_upload_${Date.now()}.pdf`);
+  
+  const parsed = parseBase64(pdfBase64);
+  if (!parsed) {
+    throw new Error('Dữ liệu tệp tin base64 không đúng định dạng.');
+  }
+  const base64Data = parsed.base64Data;
+  fs.writeFileSync(tempFilePath, Buffer.from(base64Data, 'base64'));
+
+  try {
+    const pythonScriptPath = path.join(process.cwd(), 'src', 'lib', 'pdf_parser.py');
+    const commands = [
+      `C:\\Users\\sansm\\AppData\\Local\\Microsoft\\WindowsApps\\python.exe "${pythonScriptPath}" "${tempFilePath}"`,
+      `python "${pythonScriptPath}" "${tempFilePath}"`,
+      `python3 "${pythonScriptPath}" "${tempFilePath}"`
+    ];
+
+    let stdout = '';
+    let lastError: any = null;
+
+    for (const cmd of commands) {
+      try {
+        const { stdout: out } = await execAsync(cmd, { maxBuffer: 1024 * 1024 * 30 }); // 30MB buffer
+        stdout = out;
+        break;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    if (!stdout && lastError) {
+      throw new Error(`Lỗi thực thi script Python: ${lastError.message}`);
+    }
+
+    const result = JSON.parse(stdout.trim());
+    if (!result.success) {
+      throw new Error(result.error || 'Lỗi bóc tách PDF không xác định.');
+    }
+
+    return result.exam;
+  } finally {
+    if (fs.existsSync(tempFilePath)) {
+      try {
+        fs.unlinkSync(tempFilePath);
+      } catch (e) {}
+    }
+  }
+}
 
 type ParsedAnswer = Pick<Answer, 'content'> & Partial<Pick<Answer, 'isCorrect'>>;
-type ParsedQuestion = Pick<Question, 'content'> & Partial<Pick<Question, 'points' | 'explanation'>> & {
+type ParsedQuestion = Pick<Question, 'content'> & Partial<Pick<Question, 'points' | 'explanation' | 'imageUrl' | 'imageSvg'>> & {
   answers?: ParsedAnswer[];
 };
 type ParsedExam = Partial<Pick<Exam, 'title' | 'description' | 'duration'>> & {
@@ -13,7 +87,10 @@ type ParsedExam = Partial<Pick<Exam, 'title' | 'description' | 'duration'>> & {
 
 interface GenerateExamPayload {
   fileName?: string;
+  fileType?: string;
+  fileSizeKB?: number;
   parsedExam?: ParsedExam;
+  fileData?: string; // base64 data url
 }
 
 function getErrorMessage(error: unknown, fallback: string): string {
@@ -28,16 +105,128 @@ function isParsedExam(value: unknown): value is ParsedExam {
 
 export async function POST(req: NextRequest) {
   try {
-    const { fileName = 'tai-lieu-on-tap', parsedExam } = await req.json() as GenerateExamPayload;
+    const { fileName = 'tai-lieu-on-tap', fileType = '', fileSizeKB = 0, parsedExam, fileData } = await req.json() as GenerateExamPayload;
 
-    if (!isParsedExam(parsedExam)) {
-      return NextResponse.json({ success: false, error: 'Dữ liệu đề thi đã bóc tách không hợp lệ.' }, { status: 400 });
+    let finalExamData: ParsedExam;
+
+    if (fileData) {
+      const isPdf = fileType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf');
+      
+      if (isPdf) {
+        console.log(`[Local Parser] Parsing PDF locally: "${fileName}"...`);
+        finalExamData = await runLocalPdfParser(fileData);
+      } else {
+        console.log(`[Gemini Engine] Generating exam based on uploaded file: "${fileName}"...`);
+        const parsed = parseBase64(fileData);
+        if (!parsed) {
+          return NextResponse.json({ success: false, error: 'Dữ liệu tệp tin base64 không đúng định dạng.' }, { status: 400 });
+        }
+        const mimeType = parsed.mimeType;
+        const base64Data = parsed.base64Data;
+
+        const apiKey = process.env.GEMINI_API_KEY || "";
+        if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
+          return NextResponse.json({
+            success: false,
+            error: 'Vui lòng cung cấp GEMINI_API_KEY trong cấu hình .env để bóc tách tệp bằng AI.'
+          }, { status: 500 });
+        }
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({
+          model: "gemini-3.5-flash",
+          generationConfig: {
+            responseMimeType: "application/json"
+          }
+        });
+
+      const prompt = `Bạn là một chuyên gia khảo thí và biên soạn đề kiểm tra tiếng Anh hàng đầu.
+Hãy phân tích tệp tài liệu được gửi kèm (Định dạng: ${mimeType}, Tên: ${fileName}).
+Tệp này có thể là đề kiểm tra, tài liệu ôn tập hoặc hình ảnh đề thi.
+Hãy bóc tách hoặc biên soạn một đề thi thử trắc nghiệm tiếng Anh từ tài liệu này.
+
+Yêu cầu chi tiết:
+1. Đọc kỹ nội dung văn bản và bất kỳ hình ảnh nào trong tài liệu.
+2. Thiết kế đề thi gồm:
+    - Tiêu đề đề thi sinh động, hấp dẫn bằng tiếng Việt.
+    - Mô tả ngắn giới thiệu chủ đề ôn tập.
+    - Thời gian làm bài hợp lý (tính toán dựa trên số lượng câu hỏi thực tế được bóc tách, trung bình 1.5 đến 2 phút cho mỗi câu).
+    - Hãy trích xuất và bóc tách nhiều câu hỏi nhất có thể từ tệp tài liệu này (tối đa khoảng 30 đến 40 câu hỏi trắc nghiệm phân bố đều từ đầu đến cuối tài liệu để đảm bảo bao phủ đầy đủ kiến thức và không vượt quá giới hạn ký tự phản hồi của hệ thống). Nếu tài liệu không chứa các câu hỏi trắc nghiệm sẵn có, hãy tự động biên soạn khoảng 20 đến 30 câu hỏi trắc nghiệm tiếng Anh chất lượng cao dựa trên nội dung/chủ đề ôn tập của tài liệu.
+    - Mỗi câu hỏi có 4 lựa chọn (A, B, C, D) với ĐÁP ÁN ĐÚNG DUY NHẤT và GIẢI THÍCH chi tiết vì sao đúng bằng tiếng Việt.
+3. QUAN TRỌNG VỀ HÌNH ẢNH:
+   - Nếu tài liệu là hình ảnh duy nhất (ví dụ: ảnh chụp 1 trang đề thi) hoặc nếu câu hỏi đó liên quan trực tiếp đến hình ảnh duy nhất này, hãy đặt trường "imageUrl" của câu hỏi đó là "uploaded_file".
+   - Nếu trong tài liệu có hình ảnh/hình minh họa/biển báo/sơ đồ cụ thể cho từng câu hỏi, hãy thiết kế lại hình ảnh minh họa đó thành mã nguồn SVG tự dựng (chứa trong trường "imageSvg" của câu hỏi đó dưới dạng một chuỗi HTML SVG hoàn chỉnh, tự co giãn responsive và có thiết kế hiện đại, tinh tế với màu sắc chalk #F2EFE7 và crimson #DC143C). Nếu không cần hình ảnh cho câu hỏi đó, hãy bỏ trống trường "imageUrl" và "imageSvg".
+
+Hãy xuất kết quả chính xác theo định dạng JSON Schema sau:
+{
+  "title": string,
+  "description": string,
+  "duration": number,
+  "questions": [
+    {
+      "content": string,
+      "explanation": string,
+      "points": number,
+      "imageUrl": string,
+      "imageSvg": string,
+      "answers": [
+        { "content": string, "isCorrect": boolean }
+      ]
+    }
+  ]
+}`;
+
+      const result = await model.generateContent([
+        {
+          inlineData: {
+            data: base64Data,
+            mimeType: mimeType
+          }
+        },
+        prompt
+      ]);
+      const textOutput = result.response.text();
+      if (!textOutput) {
+        throw new Error('Gemini không phản hồi văn bản định dạng mong muốn.');
+      }
+      
+      const generated = JSON.parse(textOutput);
+      
+      // Map questions and handle imageUrl
+      const isImage = mimeType.startsWith('image/');
+      const mappedQuestions = (generated.questions || []).map((q: any) => {
+        let qImageUrl = q.imageUrl;
+        if (qImageUrl === 'uploaded_file' && isImage) {
+          qImageUrl = fileData; // Save original uploaded image data url
+        }
+        return {
+          content: q.content,
+          points: q.points || 2,
+          explanation: q.explanation || 'Đáp án đúng dựa vào tài liệu.',
+          imageUrl: qImageUrl || undefined,
+          imageSvg: q.imageSvg || undefined,
+          answers: q.answers || []
+        };
+      });
+
+      finalExamData = {
+        title: generated.title || fileName.replace(/\.[^/.]+$/, "").replace(/_/g, " "),
+        description: generated.description || 'Đề thi được bóc tách tự động bằng AI từ tài liệu.',
+        duration: Number(generated.duration) || 15,
+        questions: mappedQuestions
+      };
+      }
+    } else {
+      if (!isParsedExam(parsedExam)) {
+        return NextResponse.json({ success: false, error: 'Dữ liệu đề thi đã bóc tách không hợp lệ.' }, { status: 400 });
+      }
+      finalExamData = parsedExam;
     }
 
     console.log(`[Offline Sync] Saving parsed exam from file: "${fileName}" to Prisma DB...`);
 
     const examId = `gen-exam-${Date.now()}`;
-    const mappedQuestions: Question[] = parsedExam.questions.map((q, qIdx) => {
+    const mappedQuestions: Question[] = finalExamData.questions.map((q, qIdx) => {
       const qId = `gen-q-${qIdx}-${Date.now()}`;
       return {
         id: qId,
@@ -45,6 +234,8 @@ export async function POST(req: NextRequest) {
         points: q.points || 2,
         order: qIdx + 1,
         explanation: q.explanation || 'Đáp án đúng theo tài liệu mẫu.',
+        imageUrl: q.imageUrl || undefined,
+        imageSvg: q.imageSvg || undefined,
         answers: (q.answers || []).map((a, aIdx) => ({
           id: `gen-a-${qIdx}-${aIdx}-${Date.now()}`,
           content: a.content,
@@ -55,9 +246,9 @@ export async function POST(req: NextRequest) {
 
     const newExam: Exam = {
       id: examId,
-      title: parsedExam.title || `Đề Ôn Tập - ${fileName}`,
-      description: parsedExam.description || 'Đề khảo thí thiết kế sinh động từ file dữ liệu của giáo viên.',
-      duration: Number(parsedExam.duration) || 15,
+      title: finalExamData.title || `Đề Ôn Tập - ${fileName}`,
+      description: finalExamData.description || 'Đề khảo thí thiết kế sinh động từ file dữ liệu của giáo viên.',
+      duration: Number(finalExamData.duration) || 15,
       createdAt: new Date().toISOString(),
       questions: mappedQuestions
     };
@@ -83,6 +274,8 @@ export async function POST(req: NextRequest) {
               explanation: mq.explanation,
               points: mq.points,
               order: mq.order,
+              imageUrl: mq.imageUrl || null,
+              imageSvg: mq.imageSvg || null,
               answers: {
                 create: mq.answers.map((ma) => ({
                   id: ma.id,

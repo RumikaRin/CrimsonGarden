@@ -12,7 +12,8 @@ import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { getThemeTokens } from '@/lib/theme';
 import { playSound } from '@/lib/snakeSound';
-import { SnakeCanvasRenderer, FoodItem } from './snake/SnakeCanvas';
+import { FoodItem, Particle } from './snake/SnakeCanvas';
+import { StorybookSnakeRenderer } from './snake/StorybookSnakeRenderer';
 import { downloadFile } from '@/lib/download';
 
 const GRID_SIZE = 30;
@@ -97,7 +98,6 @@ export default function VocabularySnake() {
 
   const tickInterval = DIFFICULTY_SPEEDS[difficulty];
 
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const snakeRef = useRef<{ x: number; y: number }[]>([
     { x: 10, y: 10 }, { x: 10, y: 11 }, { x: 10, y: 12 },
   ]);
@@ -105,8 +105,10 @@ export default function VocabularySnake() {
     { x: 10, y: 10 }, { x: 10, y: 11 }, { x: 10, y: 12 },
   ]);
   const directionRef = useRef<{ x: number; y: number }>({ x: 0, y: -1 });
+  const inputQueueRef = useRef<{ x: number; y: number }[]>([]);
   const foodsRef = useRef<FoodItem[]>([]);
   const obstaclesRef = useRef<{ x: number; y: number }[]>([]);
+  const particlesRef = useRef<Particle[]>([]);
   const gameIntervalRef = useRef<number | null>(null);
   const durationRef = useRef<number>(0);
   const durationIntervalRef = useRef<number | null>(null);
@@ -143,10 +145,18 @@ export default function VocabularySnake() {
   }, []);
 
   const changeDirection = (newDir: { x: number; y: number }) => {
-    const lastDir = lastProcessedDirectionRef.current;
-    if (newDir.x !== 0 && lastDir.x === -newDir.x) return;
-    if (newDir.y !== 0 && lastDir.y === -newDir.y) return;
-    directionRef.current = newDir;
+    const queue = inputQueueRef.current;
+    // Use the last queued direction for reverse check, or the last processed direction if queue is empty
+    const referenceDir = queue.length > 0 ? queue[queue.length - 1] : lastProcessedDirectionRef.current;
+    // Block 180° reversal
+    if (newDir.x !== 0 && referenceDir.x === -newDir.x) return;
+    if (newDir.y !== 0 && referenceDir.y === -newDir.y) return;
+    // Skip duplicate of last queued direction
+    if (referenceDir.x === newDir.x && referenceDir.y === newDir.y) return;
+    // Cap queue at 3 to prevent excessive buffering
+    if (queue.length >= 3) return;
+    queue.push(newDir);
+    if (soundEnabled) playSound('turn');
   };
 
   const setupTargets = (category?: string) => {
@@ -188,6 +198,7 @@ export default function VocabularySnake() {
     prevSnakeRef.current = [{ x: 10, y: 10 }, { x: 10, y: 11 }, { x: 10, y: 12 }];
     directionRef.current = { x: 0, y: -1 };
     lastProcessedDirectionRef.current = { x: 0, y: -1 };
+    inputQueueRef.current = [];
     scoreRef.current = 0; setScore(0);
     durationRef.current = 0;
     eatenWordsRef.current = new Set(); setEatenWords(new Set());
@@ -248,6 +259,12 @@ export default function VocabularySnake() {
     prevSnakeRef.current = [...snakeRef.current];
     lastTickTimeRef.current = performance.now();
 
+    // Dequeue the next buffered input direction
+    const queued = inputQueueRef.current.shift();
+    if (queued) {
+      directionRef.current = queued;
+    }
+
     const snake = [...snakeRef.current];
     const head = { ...snake[0] };
     const dir = directionRef.current;
@@ -271,6 +288,20 @@ export default function VocabularySnake() {
         if (soundEnabled) playSound('correct');
         scoreRef.current += 20; setScore(scoreRef.current);
         triggerFeedback((lang === 'en' ? 'CORRECT!' : 'ĐÚNG!') + ' (+20đ)', '#22C55E');
+        // Spawn success particles
+        const px = food.x * GRID_SIZE + GRID_SIZE / 2;
+        const py = food.y * GRID_SIZE + GRID_SIZE / 2;
+        for (let p = 0; p < 10; p++) {
+          const angle = (Math.PI * 2 * p) / 10 + (Math.random() - 0.5) * 0.5;
+          const speed = 1.5 + Math.random() * 2.5;
+          particlesRef.current.push({
+            x: px, y: py,
+            vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+            life: 1, decay: 0.02 + Math.random() * 0.02,
+            radius: 2 + Math.random() * 3,
+            color: '#22C55E',
+          });
+        }
         const newEaten = new Set(eatenWordsRef.current);
         newEaten.add(food.word);
         eatenWordsRef.current = newEaten; setEatenWords(new Set(newEaten));
@@ -282,6 +313,20 @@ export default function VocabularySnake() {
         if (soundEnabled) playSound('wrong');
         scoreRef.current = Math.max(0, scoreRef.current - 10); setScore(scoreRef.current);
         triggerFeedback((lang === 'en' ? 'WRONG!' : 'SAI!') + ' (-10đ)', '#DC143C');
+        // Spawn error particles
+        const px = food.x * GRID_SIZE + GRID_SIZE / 2;
+        const py = food.y * GRID_SIZE + GRID_SIZE / 2;
+        for (let p = 0; p < 6; p++) {
+          const angle = (Math.PI * 2 * p) / 6 + (Math.random() - 0.5) * 0.4;
+          const speed = 1 + Math.random() * 2;
+          particlesRef.current.push({
+            x: px, y: py,
+            vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+            life: 1, decay: 0.03 + Math.random() * 0.02,
+            radius: 1.5 + Math.random() * 2,
+            color: '#DC143C',
+          });
+        }
         snake.pop();
         setupTargets(selectedCategoryRef.current);
       }
@@ -424,14 +469,14 @@ export default function VocabularySnake() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto">
       {/* Game Dashboard Sub-Header */}
-      <div className="flex flex-col gap-5 border-b border-[var(--border-default)] pb-6 md:flex-row md:items-end md:justify-between">
+      <div className="flex flex-col gap-4 border-b border-[var(--border-default)] pb-4 sm:gap-5 sm:pb-6 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-sans font-bold uppercase tracking-[0.22em]" style={{ color: tokens.accent }}>Game học tập</span>
           </div>
-          <h2 className="text-3xl sm:text-4xl font-serif font-bold text-[var(--text-primary)] tracking-tight">
+          <h2 className="text-[1.75rem] sm:text-4xl font-serif font-bold text-[var(--text-primary)] tracking-tight">
             Săn Từ Vựng
           </h2>
           <p className="text-xs text-[var(--text-secondary)] font-sans">
@@ -460,7 +505,7 @@ export default function VocabularySnake() {
           </div>
 
           {/* Sound settings and Pause control toggles */}
-          <div className="col-span-2 flex items-center gap-1.5 border-l pl-3 border-[var(--border-default)] sm:col-span-1">
+          <div className="col-span-2 flex items-center justify-end gap-1.5 border-t pt-2 border-[var(--border-default)] sm:col-span-1 sm:justify-start sm:border-l sm:border-t-0 sm:pl-3 sm:pt-0">
             <button
               onClick={() => setSoundEnabled(!soundEnabled)}
               title={soundEnabled ? 'Tắt âm thanh' : 'Bật âm thanh'}
@@ -499,21 +544,21 @@ export default function VocabularySnake() {
       </div>
 
       {/* Main Grid Layout */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 sm:gap-6 items-start">
         {/* Column 1: Cột Trái (Main Stage) */}
         <div className="xl:col-span-8 space-y-4">
           {/* Target Word Card (Flashcard style) */}
-          <div className={cn('rounded-2xl border p-5 text-center min-h-[96px] flex flex-col justify-center relative overflow-hidden transition-all duration-300',
+          <div className={cn('rounded-[1.35rem] border-2 p-4 text-center min-h-[82px] sm:min-h-[96px] sm:p-5 flex flex-col justify-center relative overflow-hidden transition-all duration-300 before:pointer-events-none before:absolute before:inset-0 before:opacity-20 before:[background-image:radial-gradient(currentColor_0.7px,transparent_0.7px)] before:[background-size:12px_12px]',
             gameState === 'playing' && targetWord
-              ? (isGreenTheme ? 'bg-[#224334] border-[#224334] text-white' : 'bg-[#1A1814] border-[#1A1814] text-white')
-              : (isGreenTheme ? 'bg-[#FAF9F6] border-[#224334]/30' : 'bg-[#FFF9F6] border-[#DC143C]/25'),
+              ? (isDarkTheme ? 'bg-[#241E19] border-[#D6B98C] text-[#F1DFC1]' : 'bg-[#F5ECD9] border-[#7A5942] text-[#4B3028]')
+              : (isDarkTheme ? 'bg-[#241E19] border-[#D6B98C]/50' : 'bg-[#F5ECD9] border-[#7A5942]/50'),
           )}>
             {gameState === 'playing' && targetWord ? (
               <div className="space-y-1 animate-fade-in">
                 <span className="text-[10px] font-sans font-bold uppercase tracking-[0.25em] opacity-70 flex items-center justify-center gap-1.5">
                   <Target className="w-3.5 h-3.5 animate-pulse text-amber-400" /> Săn từ tiếng Anh có nghĩa:
                 </span>
-                <p className="text-2xl sm:text-3xl font-serif font-extrabold mt-0.5 tracking-wide text-amber-50">
+                <p className="relative text-2xl sm:text-3xl font-serif font-extrabold mt-0.5 tracking-wide">
                   {targetWord.vietnamese}
                 </p>
               </div>
@@ -533,30 +578,23 @@ export default function VocabularySnake() {
           </div>
 
           {/* Canvas Wrapper Board */}
-          <div className="relative w-full aspect-[15/10] max-w-[900px] mx-auto rounded-2xl border bg-white overflow-hidden transition-all duration-300"
+          <div className="relative w-full aspect-[4/3] sm:aspect-[15/10] max-w-[900px] mx-auto rounded-[1.6rem] border-2 bg-[#F5ECD9] overflow-hidden transition-all duration-300"
             style={{
-              borderColor: tokens.accent,
-              boxShadow: '0 18px 42px rgba(26, 24, 20, 0.12)'
+              borderColor: isDarkTheme ? '#D6B98C' : '#7A5942',
+              boxShadow: '5px 7px 0 rgba(75, 48, 40, 0.18), 0 20px 48px rgba(26, 24, 20, 0.14)'
             }}
           >
-            {/* The HTML5 Canvas */}
-            <canvas
-              ref={canvasRef}
-              width={CANVAS_W}
-              height={CANVAS_H}
-              className="block w-full h-full"
-            />
-            
-            <SnakeCanvasRenderer
-              canvasRef={canvasRef}
+            <StorybookSnakeRenderer
               gameState={gameState}
               snakeRef={snakeRef}
               prevSnakeRef={prevSnakeRef}
               directionRef={directionRef}
               foodsRef={foodsRef}
               obstaclesRef={obstaclesRef}
+              particlesRef={particlesRef}
               lastTickTimeRef={lastTickTimeRef}
               tickInterval={tickInterval}
+              onDirection={changeDirection}
             />
 
             {/* Overlays inside the Board boundary */}
@@ -719,8 +757,8 @@ export default function VocabularySnake() {
 
           {/* Mobile controllers d-pad */}
           {(gameState === 'playing' || gameState === 'paused') && (
-            <div className={cn('rounded-2xl p-4 sm:hidden flex flex-col items-center gap-2', cardFrame)}>
-              <span className="text-[10px] text-zinc-400 font-bold uppercase font-sans tracking-widest">Phím Điều Khiển Ảo</span>
+            <div className={cn('rounded-2xl p-3 sm:hidden flex flex-col items-center gap-2', cardFrame)}>
+              <span className="text-[10px] text-zinc-400 font-bold uppercase font-sans tracking-widest">Điều khiển</span>
               <div className="grid grid-cols-3 gap-2">
                 <div />
                 <button type="button" aria-label="Lên" onClick={() => changeDirection({ x: 0, y: -1 })} className={dirBtn}><ArrowUp className="w-5 h-5" /></button>

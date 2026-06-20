@@ -18,6 +18,7 @@ interface QuestionGridProps {
   hasIncorrectAnswers: boolean;
   totalQuestions: number;
   progressPct: number;
+  compact?: boolean;
   gridContainerRef: React.RefObject<HTMLDivElement | null>;
   onSelectQuestion: (index: number) => void;
   onSubmit: () => void;
@@ -28,24 +29,32 @@ interface QuestionGridProps {
 export function QuestionGrid({
   activeExam, activeAnswers, currentQuestionIndex, isExamSubmitted, markedQuestions,
   isGreenTheme, examMode, answeredCount, totalQuestions, progressPct,
-  reviewCount, hasIncorrectAnswers, gridContainerRef, onSelectQuestion, onSubmit, onRetryIncorrect, onResetSession,
+  reviewCount, hasIncorrectAnswers, compact = false, gridContainerRef, onSelectQuestion, onSubmit, onRetryIncorrect, onResetSession,
 }: QuestionGridProps) {
   const accentBg = 'bg-[var(--accent)]';
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--card-bg)]">
       <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
-        <div className="flex items-start justify-between gap-3 mb-3 shrink-0">
-          <div>
-            <h3 className="text-sm font-serif font-bold text-[var(--text-primary)]">{totalQuestions} câu hỏi</h3>
-            <p className="mt-1 text-[9px] font-mono text-[var(--text-secondary)]">
-              Cuộn xuống để xem toàn bộ
-            </p>
+        {!compact && (
+          <div className="flex items-start justify-between gap-3 mb-3 shrink-0">
+            <div>
+              <h3 className="text-sm font-serif font-bold text-[var(--text-primary)]">{totalQuestions} câu hỏi</h3>
+              <p className="mt-1 text-[9px] font-mono text-[var(--text-secondary)]">
+                Cuộn xuống để xem toàn bộ
+              </p>
+            </div>
+            <span className="text-[10px] font-mono text-[var(--text-secondary)] bg-[var(--surface-soft)] px-2 py-0.5 rounded-full">{answeredCount}/{totalQuestions}</span>
           </div>
-          <span className="text-[10px] font-mono text-[var(--text-secondary)] bg-[var(--surface-soft)] px-2 py-0.5 rounded-full">{answeredCount}/{totalQuestions}</span>
-        </div>
-        <div ref={gridContainerRef} className="min-h-[320px] flex-1 overflow-y-auto pr-1 custom-scrollbar">
-          <div className="grid grid-cols-5 gap-2 pb-2">
+        )}
+        <div
+          ref={gridContainerRef}
+          className={cn(
+            "flex-1 overflow-y-auto overscroll-contain pr-1 custom-scrollbar",
+            compact ? "min-h-0 touch-pan-y" : "min-h-[180px] sm:min-h-[260px] xl:min-h-[320px]"
+          )}
+        >
+          <div className="grid grid-cols-6 gap-2 pb-2 sm:grid-cols-8 xl:grid-cols-5">
             {activeExam.questions.map((q, idx) => {
               const originalQuestionNumber = q.order > 0 ? q.order : idx + 1;
               const isAnswered = !!activeAnswers[q.id];
@@ -80,7 +89,7 @@ export function QuestionGrid({
           <Legend color="bg-amber-400" label="Cần xem lại" />
           <Legend color={cn("border border-[var(--accent)] bg-[var(--accent-light)]")} label="Đang xem" />
         </div>
-        <div className="mt-4 pt-4 border-t border-[var(--border-default)] shrink-0">
+        {!compact && <div className="mt-4 pt-4 border-t border-[var(--border-default)] shrink-0">
           {!isExamSubmitted && examMode === 'practice' && hasIncorrectAnswers && reviewCount > 0 && (
             <button
               onClick={onRetryIncorrect}
@@ -100,9 +109,9 @@ export function QuestionGrid({
               Quay lại
             </button>
           )}
-        </div>
+        </div>}
       </div>
-      {!isExamSubmitted && (
+      {!isExamSubmitted && !compact && (
         <div className="bg-[var(--surface-soft)] border-t border-[var(--border-default)] p-3.5 shadow-sm shrink-0">
           <div className="flex items-center gap-2 text-[11px] font-sans font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2">
             <BarChart3 className="w-3.5 h-3.5" /> Tiến độ

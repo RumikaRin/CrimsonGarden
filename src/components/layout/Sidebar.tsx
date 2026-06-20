@@ -5,10 +5,10 @@ import { useExamStore, computeStreak } from '@/store/useExamStore';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useIsGreen } from '@/lib/useThemeTokens';
-import { AnimatePresence, motion } from 'motion/react';
+import { motion } from 'motion/react';
 import {
   Home, PenLine, Gamepad2, Trophy, Upload, BookOpenCheck, Brain,
-  ShieldCheck, LogOut, ChevronRight, Menu, X, Settings
+  ShieldCheck, LogOut, ChevronRight
 } from 'lucide-react';
 
 const navItems = [
@@ -21,200 +21,6 @@ const navItems = [
   { path: '/generate', label: 'Bóc Tách Đề', icon: Upload },
 ];
 
-interface MobileSidebarDrawerProps {
-  isOpen: boolean;
-  onClose: () => void;
-  isOnline: boolean;
-  hasUnsyncedData: boolean;
-}
-
-function MobileSidebarDrawer({ isOpen, onClose, isOnline, hasUnsyncedData }: MobileSidebarDrawerProps) {
-  const { theme, setTheme, currentUser, activityDates, logout, isExamActive } = useExamStore();
-  const pathname = usePathname();
-  const router = useRouter();
-  const streak = computeStreak(activityDates);
-  const isAdminMode = currentUser?.role === 'ADMIN';
-
-  const initials = currentUser?.name
-    ? currentUser.name.split(' ').map((word) => word[0]).slice(-2).join('').toUpperCase()
-    : '??';
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const previousOverflow = document.body.style.overflow;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', closeOnEscape);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener('keydown', closeOnEscape);
-    };
-  }, [isOpen, onClose]);
-
-  const navigate = (path: string) => {
-    onClose();
-    router.push(path);
-  };
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.button
-            type="button"
-            aria-label="Đóng menu"
-            className="md:hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-[2px]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-          />
-
-          <motion.aside
-            aria-label="Menu điều hướng trên di động"
-            className="md:hidden fixed left-2 top-2 bottom-2 z-[70] flex w-[calc(100%-1rem)] max-w-[320px] flex-col overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--card-bg)] shadow-2xl"
-            initial={{ x: '-105%', opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: '-105%', opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 360, damping: 34 }}
-          >
-            <div className="flex h-16 shrink-0 items-center justify-between border-b border-[var(--border-default)] px-4">
-              <button type="button" onClick={() => navigate('/')} className="text-left">
-                <span className="block font-serif text-xl font-bold tracking-tight text-[var(--accent)]">
-                  Crimson <span className="font-normal italic">Garden</span>
-                </span>
-                <span className="block text-[8px] font-bold uppercase tracking-[0.22em] text-[var(--text-muted)]">
-                  Học viện thư thái
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Đóng menu"
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-primary)] transition-colors hover:bg-[var(--accent-light)]/30 active:scale-95"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
-              {navItems.map(({ path, label, icon: Icon }) => {
-                const isActive = pathname === path && !isAdminMode;
-                return (
-                  <button
-                    type="button"
-                    key={path}
-                    onClick={() => navigate(path)}
-                    aria-current={isActive ? 'page' : undefined}
-                    className={cn(
-                      'flex min-h-12 w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold transition-all active:scale-[0.98]',
-                      isActive
-                        ? 'bg-[var(--accent)] text-[var(--accent-foreground)]'
-                        : 'text-[var(--text-secondary)] hover:bg-[var(--accent-light)]/30 hover:text-[var(--text-primary)]'
-                    )}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    <span>{label}</span>
-                    {path === '/quiz' && isExamActive && (
-                      <span className="ml-auto h-1.5 w-1.5 rounded-full bg-current animate-ping" />
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
-
-            <div className="shrink-0 space-y-3 border-t border-[var(--border-default)] p-3">
-              <div className="flex items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--accent-light)]/10 px-3 py-2.5">
-                <span className={cn(
-                  'h-2 w-2 shrink-0 rounded-full',
-                  !isOnline ? 'bg-orange-500' : hasUnsyncedData ? 'bg-amber-500' : 'bg-green-500'
-                )} />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-                  {!isOnline ? 'Chế độ ngoại tuyến' : hasUnsyncedData ? 'Đang đồng bộ...' : 'Đồng bộ đám mây'}
-                </span>
-                {currentUser && (
-                  <span className="ml-auto text-[10px] font-bold uppercase text-[var(--accent)]">
-                    {streak} ngày
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center rounded-xl border border-[var(--border-default)] bg-[var(--page-bg)] p-1">
-                {(['cozy', 'neon', 'dark'] as const).map((themeOption) => (
-                  <button
-                    type="button"
-                    key={themeOption}
-                    onClick={() => setTheme(themeOption)}
-                    className={cn(
-                      'flex-1 rounded-lg px-2 py-2 text-[9px] font-bold uppercase tracking-wider transition-all',
-                      theme === themeOption
-                        ? 'bg-[var(--accent)] text-[var(--accent-foreground)]'
-                        : 'text-[var(--text-secondary)]'
-                    )}
-                  >
-                    {themeOption === 'cozy' ? 'Crimson' : themeOption === 'neon' ? 'Garden' : 'Night'}
-                  </button>
-                ))}
-              </div>
-
-              {currentUser ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/settings')}
-                    className="flex w-full items-center gap-3 rounded-xl border border-[var(--border-default)] px-3 py-2.5 text-left transition-colors hover:bg-[var(--accent-light)]/30"
-                  >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent-light)] text-[10px] font-bold text-[var(--accent)]">
-                      {initials}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-serif text-sm font-bold text-[var(--text-primary)]">{currentUser.name}</span>
-                      <span className="block truncate text-[10px] text-[var(--text-muted)]">{currentUser.email}</span>
-                    </span>
-                    <Settings className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-                  </button>
-                  {isAdminMode && (
-                    <button
-                      type="button"
-                      onClick={() => navigate('/admin')}
-                      className="flex w-full items-center gap-2.5 rounded-xl bg-[var(--text-primary)] px-4 py-2.5 text-[11px] font-bold text-[var(--card-bg)]"
-                    >
-                      <ShieldCheck className="h-4 w-4" /> Mở quản trị giáo viên
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onClose();
-                      logout();
-                    }}
-                    className="flex w-full items-center gap-2.5 rounded-xl px-4 py-2 text-[11px] text-red-500 transition-colors hover:bg-red-500/10"
-                  >
-                    <LogOut className="h-4 w-4" /> Đăng xuất
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => navigate('/login')}
-                  className="w-full rounded-xl bg-[var(--accent)] px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--accent-foreground)] active:scale-[0.98]"
-                >
-                  Đăng nhập / Đăng ký
-                </button>
-              )}
-            </div>
-          </motion.aside>
-        </>
-      )}
-    </AnimatePresence>
-  );
-}
-
 export function Sidebar() {
   const { theme, setTheme, currentUser, activityDates, logout, isExamActive, attempts, gameScores } = useExamStore();
   const pathname = usePathname();
@@ -224,7 +30,6 @@ export function Sidebar() {
 
   const hasUnsyncedData = attempts.some((a) => !a.synced) || gameScores.some((g) => !g.synced);
   const [isOnline, setIsOnline] = useState(true);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -247,32 +52,6 @@ export function Sidebar() {
   if (!currentUser) {
     return (
       <>
-        {/* Mobile header */}
-        <div className="md:hidden fixed top-0 left-0 right-0 z-50 px-2 pt-2">
-          <div className="rounded-2xl px-4 h-14 flex items-center justify-between border border-[var(--border-default)] bg-[var(--card-bg)] shadow-sm">
-            <span className="font-serif text-lg font-bold">
-              <span className="text-[var(--accent)]">Crimson</span>{' '}
-              <span className="italic font-normal text-[var(--accent)]">Garden</span>
-            </span>
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(true)}
-              aria-label="Mở menu"
-              aria-expanded={isMobileMenuOpen}
-              className="flex h-10 items-center gap-2 rounded-xl border border-[var(--border-default)] px-3 text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)] transition-colors hover:bg-[var(--accent-light)]/30 active:scale-95"
-            >
-              <Menu className="h-4 w-4" /> Menu
-            </button>
-          </div>
-        </div>
-
-        <MobileSidebarDrawer
-          isOpen={isMobileMenuOpen}
-          onClose={() => setIsMobileMenuOpen(false)}
-          isOnline={isOnline}
-          hasUnsyncedData={hasUnsyncedData}
-        />
-
         {/* Desktop sidebar */}
         <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-64 z-40 border-r transition-colors duration-300 bg-[var(--card-bg)] border-[var(--border-default)]">
           <div className="px-6 pt-8 pb-6 border-b border-[var(--border-default)]">
@@ -355,48 +134,6 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile header (collapsed sidebar trigger) */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 px-2 pt-2">
-        <div className="rounded-2xl px-4 h-14 flex items-center justify-between border border-[var(--border-default)] bg-[var(--card-bg)] shadow-sm">
-          <span className="font-serif text-lg font-bold">
-            <span className="text-[var(--accent)]">Crimson</span>{' '}
-            <span className="italic font-normal text-[var(--accent)]">Garden</span>
-          </span>
-          <div className="flex items-center gap-2.5">
-            <span className="relative flex h-2 w-2" title={!isOnline ? "Hoạt động ngoại tuyến" : hasUnsyncedData ? "Đang đồng bộ..." : "Đã đồng bộ đám mây"}>
-              {!isOnline ? (
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
-              ) : hasUnsyncedData ? (
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-              ) : null}
-              <span className={cn(
-                "relative inline-flex rounded-full h-2 w-2",
-                !isOnline ? "bg-orange-500" : hasUnsyncedData ? "bg-amber-500" : "bg-green-500"
-              )} />
-            </span>
-            <div className={cn('px-2 py-1 rounded-lg text-[9px] font-bold uppercase', 'bg-[var(--accent-light)]/20 text-[var(--accent)]')}>
-              {streak > 0 ? streak + ' ngày' : '0 ngày'}
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(true)}
-              aria-label="Mở menu"
-              aria-expanded={isMobileMenuOpen}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-primary)] transition-colors hover:bg-[var(--accent-light)]/30 active:scale-95"
-            >
-              <Menu className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <MobileSidebarDrawer
-        isOpen={isMobileMenuOpen}
-        onClose={() => setIsMobileMenuOpen(false)}
-        isOnline={isOnline}
-        hasUnsyncedData={hasUnsyncedData}
-      />
-
       {/* Desktop sidebar */}
       <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-64 z-40 border-r transition-colors duration-300 bg-[var(--card-bg)] border-[var(--border-default)]">
         {/* Logo */}
