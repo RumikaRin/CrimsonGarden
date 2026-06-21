@@ -8,3 +8,6 @@ coverage/
 !.env.example
 .next/
 tsconfig.tsbuildinfo
+__pycache__/
+*.pyc
+temp_uploads/
