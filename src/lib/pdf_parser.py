@@ -308,8 +308,16 @@ def question_needs_image(q):
     for ans in q['answers']:
         text_to_check += " " + ans['content'].lower()
     
+    # Exclude common false positives containing "hình" or "figure"
+    excludes = [
+        "cấu hình", "mô hình", "hình thức", "tình hình", "điển hình", "hình học", "tàng hình", "địa hình",
+        "configure", "configuration", "configuring", "pre-configure", "reconfigure"
+    ]
+    for ex in excludes:
+        text_to_check = text_to_check.replace(ex, "")
+        
     # Keywords indicating a figure/diagram/table/graph is needed
-    keywords = ["hình", "đồ thị", "bảng", "sơ đồ", "biểu đồ", "figure", "diagram", "chart", "graph", "table", "illustration"]
+    keywords = ["hình", "đồ thị", "bảng", "sơ đồ", "biểu đồ", "figure", "diagram", "chart", "graph", "table", "illustration", "exhibit"]
     return any(kw in text_to_check for kw in keywords)
 
 def extract_xobjects_to_images(xobj_dict, seen_data, page_images, depth=0):
@@ -429,17 +437,30 @@ def parse_pdf(pdf_path):
                 }
                 continue
 
-            # Match choice: A. or *A.
-            opt_match = re.match(r'^(\*?)\s*([A-D])\s*\.\s*(.+)$', line_str)
-            if opt_match and current_q:
-                is_correct = opt_match.group(1) == '*'
-                letter = opt_match.group(2)
-                opt_text = opt_match.group(3)
-                current_q['answers'].append({
-                    'letter': letter,
-                    'content': clean_spaces(opt_text),
-                    'isCorrect': is_correct
-                })
+            # Match choice line prefix (A. or *A., case insensitive)
+            is_opt_line = re.match(r'^([\*✓✔]?)\s*([A-D])\s*\.', line_str, re.IGNORECASE)
+            if is_opt_line and current_q:
+                # Extract all options present on this line using findall (handles inline/grid layout)
+                opts = re.findall(r'(?:^|\s+)([\*✓✔]?)\s*([A-D])\s*\.\s*(.*?)(?=\s+[\*✓✔]?[A-D]\s*\.|$)', line_str, re.IGNORECASE)
+                for opt_marker, opt_letter, opt_content in opts:
+                    letter = opt_letter.upper()
+                    content = clean_spaces(opt_content)
+                    
+                    # Detect correct answer via start marker (*A., ✓A.)
+                    is_correct = bool(opt_marker)
+                    
+                    # Also detect trailing correct marker (e.g. A. option text* or A. option text (đúng))
+                    content_lower = content.lower()
+                    if content_lower.endswith('*') or content_lower.endswith('(đúng)') or content_lower.endswith('(correct)'):
+                        is_correct = True
+                        content = re.sub(r'\s*\*$', '', content)
+                        content = re.sub(r'\s*\((?:đúng|correct)\)$', '', content, flags=re.IGNORECASE)
+                    
+                    current_q['answers'].append({
+                        'letter': letter,
+                        'content': content,
+                        'isCorrect': is_correct
+                    })
                 continue
 
             # Continuation of question or choices
@@ -478,38 +499,69 @@ def parse_pdf(pdf_path):
             page_questions[p] = []
         page_questions[p].append(q)
 
-    # 3. Associate unique (non-logo) images with questions
+    # 3. Associate unique (non-logo) images with questions using a multi-pass proximity algorithm
+    unassigned_images_by_page = {}
     for page_idx, images in page_images_map.items():
         content_images = [img for img in images if img not in logo_images]
-        if not content_images:
-            continue
+        if content_images:
+            unassigned_images_by_page[page_idx] = list(content_images)
 
-        # Gather candidate questions from current page ± 2 pages
-        candidate_qs = []
-        for offset in [0, 1, -1, 2, -2]:
-            qs_on_page = page_questions.get(page_idx + offset, [])
-            # Prefer closer pages but still collect all candidates
-            candidate_qs.extend(qs_on_page)
+    def try_match(image_page, candidate_questions, keyword_only=False):
+        if image_page not in unassigned_images_by_page or not unassigned_images_by_page[image_page]:
+            return
         
-        if not candidate_qs:
-            continue
+        images_left = unassigned_images_by_page[image_page]
+        new_images_left = []
+        
+        for img in images_left:
+            matched = False
+            for q in candidate_questions:
+                if 'imageUrl' not in q:
+                    if not keyword_only or question_needs_image(q):
+                        q['imageUrl'] = img
+                        matched = True
+                        break
+            if not matched:
+                new_images_left.append(img)
+        
+        if new_images_left:
+            unassigned_images_by_page[image_page] = new_images_left
+        else:
+            unassigned_images_by_page.pop(image_page, None)
 
-        # First pass: prioritize questions that have image-related keywords (hình, sơ đồ, etc.)
-        img_idx = 0
-        keyword_matched = []
-        for q in candidate_qs:
-            if 'imageUrl' not in q and question_needs_image(q) and img_idx < len(content_images):
-                q['imageUrl'] = content_images[img_idx]
-                keyword_matched.append(q)
-                img_idx += 1
+    # Pass 1: Same page, keyword priority
+    for page_idx in range(total_pages):
+        qs = page_questions.get(page_idx, [])
+        try_match(page_idx, qs, keyword_only=True)
 
-        # Second pass (fallback): if nothing matched by keyword, assign to first unassigned candidate
-        if not keyword_matched:
-            for q in candidate_qs:
-                if 'imageUrl' not in q and img_idx < len(content_images):
-                    q['imageUrl'] = content_images[img_idx]
-                    img_idx += 1
-                    break  # Only assign one image if no keyword signals
+    # Pass 2: Same page, fallback
+    for page_idx in range(total_pages):
+        qs = page_questions.get(page_idx, [])
+        try_match(page_idx, qs, keyword_only=False)
+
+    # Pass 3: Proximity ±1, keyword priority
+    for page_idx in range(total_pages):
+        for offset in [1, -1]:
+            target_page = page_idx + offset
+            if 0 <= target_page < total_pages:
+                qs = page_questions.get(target_page, [])
+                try_match(page_idx, qs, keyword_only=True)
+
+    # Pass 4: Proximity ±2, keyword priority
+    for page_idx in range(total_pages):
+        for offset in [2, -2]:
+            target_page = page_idx + offset
+            if 0 <= target_page < total_pages:
+                qs = page_questions.get(target_page, [])
+                try_match(page_idx, qs, keyword_only=True)
+
+    # Pass 5: Proximity ±1, ±2, fallback
+    for page_idx in range(total_pages):
+        for offset in [1, -1, 2, -2]:
+            target_page = page_idx + offset
+            if 0 <= target_page < total_pages:
+                qs = page_questions.get(target_page, [])
+                try_match(page_idx, qs, keyword_only=False)
 
 
 
@@ -518,6 +570,11 @@ def parse_pdf(pdf_path):
     for q in questions:
         # Verify question has at least some answers to be valid
         if len(q["answers"]) > 0:
+            # Ensure at least one answer is marked correct
+            has_correct = any(ans["isCorrect"] for ans in q["answers"])
+            if not has_correct:
+                q["answers"][0]["isCorrect"] = True
+
             final_questions.append({
                 "content": q["content"],
                 "explanation": q["explanation"],
