@@ -4,6 +4,12 @@ import pypdf
 import re
 import json
 import base64
+import io
+try:
+    from PIL import Image as PILImage
+    HAS_PILLOW = True
+except ImportError:
+    HAS_PILLOW = False
 
 DIACRITICS = "áàảãạăắằẳẵặâấầẩẫậéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵÁÀẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬÉÈẺẼẸÊỀẾỂỄỆÍÌỈĨỊÓÒỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÚÙỦŨỤƯỨỪỬỮỰÝỲỶỸÝ"
 V_LETTERS = "a-zA-ZđĐ" + DIACRITICS
@@ -197,6 +203,148 @@ def should_ignore_line(line_str):
         return True
     return False
 
+def guess_image_format(data):
+    if data.startswith(b'\xff\xd8\xff'):
+        return 'jpeg'
+    elif data.startswith(b'\x89PNG\r\n\x1a\n'):
+        return 'png'
+    elif data.startswith(b'GIF87a') or data.startswith(b'GIF89a'):
+        return 'gif'
+    elif data.startswith(b'RIFF') and len(data) > 12 and data[8:12] == b'WEBP':
+        return 'webp'
+    return None  # Unknown / raw pixel data
+
+
+MAX_IMAGE_WIDTH = 900  # Max output image width in pixels
+
+
+def compress_image_bytes(raw, fmt=None):
+    """
+    Takes raw image bytes and returns (base64_string, mime_type).
+    If the bytes are already a valid image format (JPEG/PNG/GIF/WEBP), compress/resize as needed.
+    If the format is unknown (raw pixels), try to load via Pillow.
+    Returns None if conversion fails.
+    """
+    if not HAS_PILLOW:
+        # Fallback: just base64 the raw data with best-guess MIME
+        fmt = fmt or guess_image_format(raw)
+        if fmt is None:
+            return None
+        b64 = base64.b64encode(raw).decode('utf-8')
+        return b64, f'image/{fmt}'
+
+    try:
+        img = PILImage.open(io.BytesIO(raw))
+        img = img.convert('RGB')  # Normalize to RGB (handles CMYK, L, RGBA etc.)
+        # Resize if wider than MAX_IMAGE_WIDTH
+        if img.width > MAX_IMAGE_WIDTH:
+            ratio = MAX_IMAGE_WIDTH / img.width
+            new_h = int(img.height * ratio)
+            img = img.resize((MAX_IMAGE_WIDTH, new_h), PILImage.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, format='JPEG', quality=82, optimize=True)
+        b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+        return b64, 'image/jpeg'
+    except Exception:
+        return None
+
+
+def raw_xobj_to_b64(obj, raw):
+    """
+    Convert XObject image data to base64.
+    Uses Pillow to decode raw pixels if the bytes aren't a self-contained image format.
+    """
+    fmt = guess_image_format(raw)
+
+    if fmt is not None:
+        # Already a valid image format — compress/resize via Pillow
+        result = compress_image_bytes(raw, fmt)
+        if result:
+            b64, mime = result
+            return f'data:{mime};base64,{b64}'
+        # Fallback: return raw as-is
+        return f'data:image/{fmt};base64,' + base64.b64encode(raw).decode('utf-8')
+
+    # Unknown format — try to reconstruct using XObject metadata
+    if not HAS_PILLOW:
+        return None
+    try:
+        width = obj.get('/Width')
+        height = obj.get('/Height')
+        cs = obj.get('/ColorSpace')
+        bpc = obj.get('/BitsPerComponent', 8)
+        if not width or not height:
+            return None
+        width = int(width)
+        height = int(height)
+        bpc = int(bpc)
+        # Determine mode
+        if cs == '/DeviceGray' or cs == '/G':
+            mode = 'L'
+            expected = width * height * (bpc // 8)
+        elif cs == '/DeviceCMYK':
+            mode = 'CMYK'
+            expected = width * height * 4 * (bpc // 8)
+        else:  # DeviceRGB or anything else
+            mode = 'RGB'
+            expected = width * height * 3 * (bpc // 8)
+        if len(raw) < expected // 2:  # Sanity check: data too short
+            return None
+        img = PILImage.frombytes(mode, (width, height), raw)
+        img = img.convert('RGB')
+        if img.width > MAX_IMAGE_WIDTH:
+            ratio = MAX_IMAGE_WIDTH / img.width
+            img = img.resize((MAX_IMAGE_WIDTH, int(img.height * ratio)), PILImage.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, format='JPEG', quality=82, optimize=True)
+        b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+        return f'data:image/jpeg;base64,{b64}'
+    except Exception as e:
+        sys.stderr.write(f'[XObj convert] {e}\n')
+        return None
+
+def question_needs_image(q):
+    text_to_check = q['content'].lower()
+    for ans in q['answers']:
+        text_to_check += " " + ans['content'].lower()
+    
+    # Keywords indicating a figure/diagram/table/graph is needed
+    keywords = ["hình", "đồ thị", "bảng", "sơ đồ", "biểu đồ", "figure", "diagram", "chart", "graph", "table", "illustration"]
+    return any(kw in text_to_check for kw in keywords)
+
+def extract_xobjects_to_images(xobj_dict, seen_data, page_images, depth=0):
+    """Recursively walk XObject dict, appending unique base64 image strings."""
+    if not xobj_dict or depth > 4:
+        return
+    for key in xobj_dict:
+        try:
+            obj = xobj_dict[key].get_object()
+            subtype = obj.get('/Subtype')
+            if subtype == '/Image':
+                try:
+                    raw = obj.get_data()
+                    if raw and len(raw) > 100:
+                        h = hash(raw[:256])
+                        if h not in seen_data:
+                            seen_data.add(h)
+                            data_url = raw_xobj_to_b64(obj, raw)
+                            if data_url:
+                                page_images.append(data_url)
+                except Exception:
+                    pass
+            elif subtype == '/Form':
+                try:
+                    form_res = obj.get('/Resources')
+                    if form_res:
+                        nested = form_res.get('/XObject')
+                        if nested:
+                            extract_xobjects_to_images(nested, seen_data, page_images, depth + 1)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+
 def parse_pdf(pdf_path):
     if not os.path.exists(pdf_path):
         return {"success": False, "error": f"File not found: {pdf_path}"}
@@ -206,16 +354,6 @@ def parse_pdf(pdf_path):
     except Exception as e:
         return {"success": False, "error": f"Failed to read PDF: {str(e)}"}
 
-    # 1. Parse the first page to find which question numbers have images
-    image_q_nums = set()
-    first_page_text = reader.pages[0].extract_text()
-    
-    for line in first_page_text.split('\n'):
-        if 'câu' in line.lower():
-            nums = re.findall(r'\d+', line)
-            for n in nums:
-                image_q_nums.add(int(n))
-
     questions = []
     current_q = None
     
@@ -224,14 +362,43 @@ def parse_pdf(pdf_path):
     page_images_map = {}
 
     for page_idx, page in enumerate(reader.pages):
+        seen_data = set()
         page_images = []
+
+        # Strategy 1: page.images (handles inline images + some XObjects)
         for img in page.images:
             try:
-                img_data = base64.b64encode(img.data).decode('utf-8')
-                img_format = img.image.format.lower() if img.image else 'png'
-                page_images.append(f"data:image/{img_format};base64,{img_data}")
-            except Exception:
-                pass
+                raw = img.data
+                if raw and len(raw) > 100:
+                    h = hash(raw[:256])
+                    if h not in seen_data:
+                        seen_data.add(h)
+                        # Use Pillow-based compress for page.images too
+                        result = compress_image_bytes(raw)
+                        if result:
+                            b64, mime = result
+                            page_images.append(f'data:{mime};base64,{b64}')
+                        else:
+                            # Fallback: raw base64 with guessed format
+                            fmt = guess_image_format(raw)
+                            if fmt:
+                                page_images.append(
+                                    f'data:image/{fmt};base64,'
+                                    + base64.b64encode(raw).decode('utf-8')
+                                )
+            except Exception as e:
+                sys.stderr.write(f"[S1] page {page_idx}: {e}\n")
+
+        # Strategy 2 & 3: Walk /Resources/XObject to catch images inside Form XObjects
+        try:
+            resources = page.get('/Resources')
+            if resources:
+                xobjects = resources.get('/XObject')
+                if xobjects:
+                    extract_xobjects_to_images(xobjects, seen_data, page_images)
+        except Exception as e:
+            sys.stderr.write(f"[S2/S3] page {page_idx}: {e}\n")
+
         if page_images:
             page_images_map[page_idx] = page_images
 
@@ -288,19 +455,63 @@ def parse_pdf(pdf_path):
         questions.append(current_q)
 
     # Now associate images from page_images_map to the correct questions
+    # 1. Identify recurring template/logo/header/footer images across pages
+    image_pages = {} # base64_str -> set of page indices
+    for page_idx, images in page_images_map.items():
+        for img in images:
+            if img not in image_pages:
+                image_pages[img] = set()
+            image_pages[img].add(page_idx)
+            
+    total_pages = len(reader.pages)
+    logo_images = set()
+    for img, pages in image_pages.items():
+        # Only filter out recurring logo/template images if the document has at least 3 pages
+        if total_pages >= 3 and len(pages) > 2:
+            logo_images.add(img)
+
+    # 2. Group parsed questions by page
+    page_questions = {}
     for q in questions:
-        q_num = q['num']
-        q_page = q['page_idx']
+        p = q['page_idx']
+        if p not in page_questions:
+            page_questions[p] = []
+        page_questions[p].append(q)
+
+    # 3. Associate unique (non-logo) images with questions
+    for page_idx, images in page_images_map.items():
+        content_images = [img for img in images if img not in logo_images]
+        if not content_images:
+            continue
+
+        # Gather candidate questions from current page ± 2 pages
+        candidate_qs = []
+        for offset in [0, 1, -1, 2, -2]:
+            qs_on_page = page_questions.get(page_idx + offset, [])
+            # Prefer closer pages but still collect all candidates
+            candidate_qs.extend(qs_on_page)
         
-        assigned_img = None
-        for p_offset in [0, -1, 1]:
-            target_page = q_page + p_offset
-            if target_page in page_images_map:
-                assigned_img = page_images_map[target_page][0]
-                break
-                
-        if (q_num in image_q_nums) and assigned_img:
-            q['imageUrl'] = assigned_img
+        if not candidate_qs:
+            continue
+
+        # First pass: prioritize questions that have image-related keywords (hình, sơ đồ, etc.)
+        img_idx = 0
+        keyword_matched = []
+        for q in candidate_qs:
+            if 'imageUrl' not in q and question_needs_image(q) and img_idx < len(content_images):
+                q['imageUrl'] = content_images[img_idx]
+                keyword_matched.append(q)
+                img_idx += 1
+
+        # Second pass (fallback): if nothing matched by keyword, assign to first unassigned candidate
+        if not keyword_matched:
+            for q in candidate_qs:
+                if 'imageUrl' not in q and img_idx < len(content_images):
+                    q['imageUrl'] = content_images[img_idx]
+                    img_idx += 1
+                    break  # Only assign one image if no keyword signals
+
+
 
     # Convert to schema format
     final_questions = []

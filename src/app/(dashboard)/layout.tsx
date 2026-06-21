@@ -14,7 +14,7 @@ import { getThemeTokens } from '@/lib/theme';
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [hasMounted, setHasMounted] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
-  const { theme, setTheme, currentUser, logout, syncOfflineData, isExamActive } = useExamStore();
+  const { theme, setTheme, currentUser, logout, syncOfflineData, isExamActive, fetchCloudExams } = useExamStore();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -25,15 +25,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     setHasMounted(true);
     syncOfflineData();
+    fetchCloudExams();
 
     const handleOnline = () => {
       syncOfflineData();
+      fetchCloudExams();
     };
     window.addEventListener('online', handleOnline);
     return () => {
       window.removeEventListener('online', handleOnline);
     };
-  }, [syncOfflineData]);
+  }, [syncOfflineData, fetchCloudExams]);
 
   useEffect(() => {
     const root = document.documentElement;

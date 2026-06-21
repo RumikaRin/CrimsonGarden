@@ -37,7 +37,32 @@ export default function ExamQuiz() {
   const [showExitModal, setShowExitModal] = useState(false);
   const gridContainerRef = React.useRef<HTMLDivElement>(null);
 
-  const activeExam = shuffledExam || exams.find(e => e.id === activeExamId) || null;
+  const activeExam = React.useMemo(() => {
+    let exam = shuffledExam || exams.find(e => e.id === activeExamId) || null;
+    if (exam && exams.length > 0) {
+      const originalExam = exams.find(e => e.id === exam?.id);
+      if (originalExam) {
+        const restoredQuestions = exam.questions.map(q => {
+          if (!q.imageUrl && !q.imageSvg) {
+            const origQ = originalExam.questions.find(oq => oq.id === q.id);
+            if (origQ) {
+              return {
+                ...q,
+                imageUrl: origQ.imageUrl,
+                imageSvg: origQ.imageSvg
+              };
+            }
+          }
+          return q;
+        });
+        return {
+          ...exam,
+          questions: restoredQuestions
+        };
+      }
+    }
+    return exam;
+  }, [shuffledExam, exams, activeExamId]);
   const accentColor = 'var(--accent)';
   const accentBg = 'bg-[var(--accent)]';
   const accentText = 'text-[var(--accent)]';

@@ -129,6 +129,18 @@ export default function ReviewNotebook() {
               <Target className="w-6 h-6 text-[var(--accent)] shrink-0" />
             </div>
 
+            {selected.question.imageUrl && (
+              <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--surface-soft)] flex items-center justify-center p-2 max-w-full mx-auto shadow-sm">
+                <img src={selected.question.imageUrl} alt="Hình ảnh câu hỏi" className="max-h-[280px] object-contain w-full rounded-xl" />
+              </div>
+            )}
+
+            {selected.question.imageSvg && (
+              <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--surface-soft)] p-4 flex items-center justify-center max-w-full mx-auto shadow-sm">
+                <div className="w-full h-auto text-neutral-800" dangerouslySetInnerHTML={{ __html: selected.question.imageSvg }} />
+              </div>
+            )}
+
             <div className="mt-7 space-y-2">
               {selected.question.answers.map((answer) => {
                 const wasSelected = answer.id === selected.selectedAnswerId;

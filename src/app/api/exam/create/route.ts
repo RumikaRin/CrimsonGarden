@@ -50,6 +50,8 @@ export async function POST(req: NextRequest) {
             points: q.points || 2,
             order: q.order || idx + 1,
             explanation: q.explanation || '',
+            imageUrl: q.imageUrl || null,
+            imageSvg: q.imageSvg || null,
             answers: {
               create: q.answers.map((a: any) => ({
                 id: a.id,

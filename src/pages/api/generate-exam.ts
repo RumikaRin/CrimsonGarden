@@ -13,8 +13,9 @@ const execAsync = promisify(exec);
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: '50mb', // Set body size limit to 50mb to handle large base64 files
+      sizeLimit: '50mb',
     },
+    responseLimit: '200mb',
   },
 };
 
@@ -58,7 +59,7 @@ async function runLocalPdfParser(pdfBase64: string): Promise<any> {
 
     for (const cmd of commands) {
       try {
-        const { stdout: out } = await execAsync(cmd, { maxBuffer: 1024 * 1024 * 50 }); // 50MB buffer
+        const { stdout: out } = await execAsync(cmd, { maxBuffer: 1024 * 1024 * 200 }); // 200MB buffer
         stdout = out;
         break;
       } catch (err) {
@@ -84,6 +85,90 @@ async function runLocalPdfParser(pdfBase64: string): Promise<any> {
     }
   }
 }
+
+async function runGeminiParser(base64Data: string, mimeType: string, fileName: string): Promise<ParsedExam> {
+  const apiKey = process.env.GEMINI_API_KEY || '';
+  if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
+    throw new Error('Vui lòng cung cấp GEMINI_API_KEY trong cấu hình .env để bóc tách tệp bằng AI.');
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.0-flash',
+    generationConfig: { responseMimeType: 'application/json' }
+  });
+
+  const isPdfMime = mimeType === 'application/pdf';
+  const prompt = `Bạn là một chuyên gia khảo thí và biên soạn đề kiểm tra hàng đầu.
+Hãy phân tích tệp tài liệu được gửi kèm (Định dạng: ${mimeType}, Tên: ${fileName}).
+Tệp này có thể là đề kiểm tra, tài liệu ôn tập hoặc hình ảnh đề thi.
+Hãy bóc tách hoặc biên soạn một đề thi thử trắc nghiệm từ tài liệu này.
+
+Yêu cầu chi tiết:
+1. Đọc kỹ nội dung văn bản và bất kỳ hình ảnh nào trong tài liệu.
+2. Thiết kế đề thi gồm:
+    - Tiêu đề đề thi sinh động, hấp dẫn bằng tiếng Việt.
+    - Mô tả ngắn giới thiệu chủ đề ôn tập.
+    - Thời gian làm bài hợp lý (trung bình 1.5 đến 2 phút cho mỗi câu).
+    - Hãy trích xuất và bóc tách NHIỀU câu hỏi nhất có thể (tối đa 40 câu, phân bố đều từ đầu đến cuối tài liệu). Nếu tài liệu không có câu hỏi trắc nghiệm sẵn, hãy biên soạn 20-30 câu chất lượng cao dựa trên nội dung tài liệu.
+    - Mỗi câu hỏi có 4 lựa chọn (A, B, C, D) với ĐÁP ÁN ĐÚNG DUY NHẤT và GIẢI THÍCH chi tiết bằng tiếng Việt.
+3. QUAN TRỌNG VỀ HÌNH ẢNH:
+   - Nếu câu hỏi liên quan trực tiếp đến một hình ảnh trong tài liệu, hãy thiết kế lại hình ảnh đó thành mã SVG tự dựng (trong trường "imageSvg"), responsive, màu chalk #F2EFE7 và crimson #DC143C.
+   - Nếu không cần hình ảnh, để trống "imageUrl" và "imageSvg".
+
+Hãy xuất kết quả chính xác theo JSON Schema sau:
+{
+  "title": string,
+  "description": string,
+  "duration": number,
+  "questions": [
+    {
+      "content": string,
+      "explanation": string,
+      "points": number,
+      "imageUrl": string,
+      "imageSvg": string,
+      "answers": [
+        { "content": string, "isCorrect": boolean }
+      ]
+    }
+  ]
+}`;
+
+  const result = await model.generateContent([
+    { inlineData: { data: base64Data, mimeType } },
+    prompt
+  ]);
+  const textOutput = result.response.text();
+  if (!textOutput) throw new Error('Gemini không phản hồi văn bản định dạng mong muốn.');
+
+  const generated = JSON.parse(textOutput);
+  const isImageMime = mimeType.startsWith('image/');
+  const mappedQuestions = (generated.questions || []).map((q: any) => {
+    let qImageUrl = q.imageUrl;
+    if (qImageUrl === 'uploaded_file' && isImageMime) {
+      qImageUrl = `data:${mimeType};base64,${base64Data}`;
+    } else if (qImageUrl === 'uploaded_file' && isPdfMime) {
+      qImageUrl = undefined; // Can't embed PDF page as image via Gemini
+    }
+    return {
+      content: q.content,
+      points: q.points || 2,
+      explanation: q.explanation || 'Đáp án đúng dựa vào tài liệu.',
+      imageUrl: qImageUrl || undefined,
+      imageSvg: q.imageSvg || undefined,
+      answers: q.answers || []
+    };
+  });
+
+  return {
+    title: generated.title || fileName.replace(/\.[^/.]+$/, '').replace(/_/g, ' '),
+    description: generated.description || 'Đề thi được bóc tách tự động bằng AI từ tài liệu.',
+    duration: Number(generated.duration) || 15,
+    questions: mappedQuestions
+  };
+}
+
 
 type ParsedAnswer = Pick<Answer, 'content'> & Partial<Pick<Answer, 'isCorrect'>>;
 type ParsedQuestion = Pick<Question, 'content'> & Partial<Pick<Question, 'points' | 'explanation' | 'imageUrl' | 'imageSvg'>> & {
@@ -119,120 +204,51 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const { fileName = 'tai-lieu-on-tap', fileType = '', fileSizeKB = 0, parsedExam, fileData } = req.body as GenerateExamPayload;
 
-    let finalExamData: ParsedExam;
+    let finalExamData: ParsedExam | undefined;
 
     if (fileData) {
       const isPdf = fileType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf');
-      
+      const parsed = parseBase64(fileData);
+      if (!parsed) {
+        return res.status(400).json({ success: false, error: 'Dữ liệu tệp tin base64 không đúng định dạng.' });
+      }
+      const { mimeType, base64Data } = parsed;
+
       if (isPdf) {
-        console.log(`[Local Parser] Parsing PDF locally: "${fileName}"...`);
-        finalExamData = await runLocalPdfParser(fileData);
+        // Strategy 1: try local Python parser (works on local dev with Python installed)
+        let pythonSuccess = false;
+        if (!process.env.VERCEL) {
+          try {
+            console.log(`[Local Python] Parsing PDF: "${fileName}"...`);
+            finalExamData = await runLocalPdfParser(fileData);
+            pythonSuccess = true;
+            console.log(`[Local Python] Success: ${finalExamData!.questions.length} questions extracted.`);
+          } catch (pythonErr) {
+            console.warn('[Local Python] Failed, falling back to Gemini:', getErrorMessage(pythonErr, 'unknown'));
+          }
+        }
+
+        // Strategy 2: Gemini AI fallback (always used on Vercel, or when Python fails locally)
+        if (!pythonSuccess) {
+          console.log(`[Gemini PDF] Parsing PDF via Gemini AI: "${fileName}"...`);
+          finalExamData = await runGeminiParser(base64Data, 'application/pdf', fileName);
+          console.log(`[Gemini PDF] Success: ${finalExamData.questions.length} questions extracted.`);
+        }
       } else {
-        console.log(`[Gemini Engine] Generating exam based on uploaded file: "${fileName}"...`);
-        const parsed = parseBase64(fileData);
-        if (!parsed) {
-          return res.status(400).json({ success: false, error: 'Dữ liệu tệp tin base64 không đúng định dạng.' });
-        }
-        const mimeType = parsed.mimeType;
-        const base64Data = parsed.base64Data;
-
-        const apiKey = process.env.GEMINI_API_KEY || "";
-        if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
-          return res.status(500).json({
-            success: false,
-            error: 'Vui lòng cung cấp GEMINI_API_KEY trong cấu hình .env để bóc tách tệp bằng AI.'
-          });
-        }
-
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({
-          model: "gemini-3.5-flash",
-          generationConfig: {
-            responseMimeType: "application/json"
-          }
-        });
-
-        const prompt = `Bạn là một chuyên gia khảo thí và biên soạn đề kiểm tra tiếng Anh hàng đầu.
-Hãy phân tích tệp tài liệu được gửi kèm (Định dạng: ${mimeType}, Tên: ${fileName}).
-Tệp này có thể là đề kiểm tra, tài liệu ôn tập hoặc hình ảnh đề thi.
-Hãy bóc tách hoặc biên soạn một đề thi thử trắc nghiệm tiếng Anh từ tài liệu này.
-
-Yêu cầu chi tiết:
-1. Đọc kỹ nội dung văn bản và bất kỳ hình ảnh nào trong tài liệu.
-2. Thiết kế đề thi gồm:
-    - Tiêu đề đề thi sinh động, hấp dẫn bằng tiếng Việt.
-    - Mô tả ngắn giới thiệu chủ đề ôn tập.
-    - Thời gian làm bài hợp lý (tính toán dựa trên số lượng câu hỏi thực tế được bóc tách, trung bình 1.5 đến 2 phút cho mỗi câu).
-    - Hãy trích xuất và bóc tách nhiều câu hỏi nhất có thể từ tệp tài liệu này (tối đa khoảng 30 đến 40 câu hỏi trắc nghiệm phân bố đều từ đầu đến cuối tài liệu để đảm bảo bao phủ đầy đủ kiến thức và không vượt quá giới hạn ký tự phản hồi của hệ thống). Nếu tài liệu không chứa các câu hỏi trắc nghiệm sẵn có, hãy tự động biên soạn khoảng 20 đến 30 câu hỏi trắc nghiệm tiếng Anh chất lượng cao dựa trên nội dung/chủ đề ôn tập của tài liệu.
-    - Mỗi câu hỏi có 4 lựa chọn (A, B, C, D) với ĐÁP ÁN ĐÚNG DUY NHẤT và GIẢI THÍCH chi tiết vì sao đúng bằng tiếng Việt.
-3. QUAN TRỌNG VỀ HÌNH ẢNH:
-   - Nếu tài liệu là hình ảnh duy nhất (ví dụ: ảnh chụp 1 trang đề thi) hoặc nếu câu hỏi đó liên quan trực tiếp đến hình ảnh duy nhất này, hãy đặt trường "imageUrl" của câu hỏi đó là "uploaded_file".
-   - Nếu trong tài liệu có hình ảnh/hình minh họa/biển báo/sơ đồ cụ thể cho từng câu hỏi, hãy thiết kế lại hình ảnh minh họa đó thành mã nguồn SVG tự dựng (chứa trong trường "imageSvg" của câu hỏi đó dưới dạng một chuỗi HTML SVG hoàn chỉnh, tự co giãn responsive và có thiết kế hiện đại, tinh tế với màu sắc chalk #F2EFE7 và crimson #DC143C). Nếu không cần hình ảnh cho câu hỏi đó, hãy bỏ trống trường "imageUrl" và "imageSvg".
-
-Hãy xuất kết quả chính xác theo định dạng JSON Schema sau:
-{
-  "title": string,
-  "description": string,
-  "duration": number,
-  "questions": [
-    {
-      "content": string,
-      "explanation": string,
-      "points": number,
-      "imageUrl": string,
-      "imageSvg": string,
-      "answers": [
-        { "content": string, "isCorrect": boolean }
-      ]
-    }
-  ]
-}`;
-
-        const result = await model.generateContent([
-          {
-            inlineData: {
-              data: base64Data,
-              mimeType: mimeType
-            }
-          },
-          prompt
-        ]);
-        const textOutput = result.response.text();
-        if (!textOutput) {
-          throw new Error('Gemini không phản hồi văn bản định dạng mong muốn.');
-        }
-        
-        const generated = JSON.parse(textOutput);
-        
-        // Map questions and handle imageUrl
-        const isImage = mimeType.startsWith('image/');
-        const mappedQuestions = (generated.questions || []).map((q: any) => {
-          let qImageUrl = q.imageUrl;
-          if (qImageUrl === 'uploaded_file' && isImage) {
-            qImageUrl = fileData; // Save original uploaded image data url
-          }
-          return {
-            content: q.content,
-            points: q.points || 2,
-            explanation: q.explanation || 'Đáp án đúng dựa vào tài liệu.',
-            imageUrl: qImageUrl || undefined,
-            imageSvg: q.imageSvg || undefined,
-            answers: q.answers || []
-          };
-        });
-
-        finalExamData = {
-          title: generated.title || fileName.replace(/\.[^/.]+$/, "").replace(/_/g, " "),
-          description: generated.description || 'Đề thi được bóc tách tự động bằng AI từ tài liệu.',
-          duration: Number(generated.duration) || 15,
-          questions: mappedQuestions
-        };
+        // Non-PDF files (images, etc.) → always use Gemini
+        console.log(`[Gemini Engine] Parsing file via Gemini: "${fileName}" (${mimeType})...`);
+        finalExamData = await runGeminiParser(base64Data, mimeType, fileName);
+        console.log(`[Gemini Engine] Success: ${finalExamData.questions.length} questions extracted.`);
       }
     } else {
       if (!isParsedExam(parsedExam)) {
         return res.status(400).json({ success: false, error: 'Dữ liệu đề thi đã bóc tách không hợp lệ.' });
       }
       finalExamData = parsedExam;
+    }
+
+    if (!finalExamData) {
+      return res.status(500).json({ success: false, error: 'Không thể xử lý dữ liệu đề thi.' });
     }
 
     console.log(`[Offline Sync] Saving parsed exam from file: "${fileName}" to Prisma DB...`);

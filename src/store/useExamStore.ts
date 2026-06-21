@@ -286,7 +286,34 @@ export const useExamStore = create<ExamStore>()(
                 }
               });
               // Cloud is authoritative except for exams explicitly waiting to sync.
-              set({ exams: newExams, isExamsFetched: true });
+              let updatedShuffledExam = get().shuffledExam;
+              if (updatedShuffledExam) {
+                const originalExam = newExams.find(e => e.id === updatedShuffledExam?.id);
+                if (originalExam) {
+                  updatedShuffledExam = {
+                    ...updatedShuffledExam,
+                    questions: updatedShuffledExam.questions.map(q => {
+                      if (!q.imageUrl && !q.imageSvg) {
+                        const origQ = originalExam.questions.find(oq => oq.id === q.id);
+                        if (origQ) {
+                          return {
+                            ...q,
+                            imageUrl: origQ.imageUrl,
+                            imageSvg: origQ.imageSvg
+                          };
+                        }
+                      }
+                      return q;
+                    })
+                  };
+                }
+              }
+
+              set({
+                exams: newExams,
+                isExamsFetched: true,
+                ...(updatedShuffledExam ? { shuffledExam: updatedShuffledExam } : {})
+              });
             }
           }
         } catch (err) {
