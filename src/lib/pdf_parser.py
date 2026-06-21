@@ -491,77 +491,31 @@ def parse_pdf(pdf_path):
         if total_pages >= 3 and len(pages) > 2:
             logo_images.add(img)
 
-    # 2. Group parsed questions by page
-    page_questions = {}
-    for q in questions:
-        p = q['page_idx']
-        if p not in page_questions:
-            page_questions[p] = []
-        page_questions[p].append(q)
-
-    # 3. Associate unique (non-logo) images with questions using a multi-pass proximity algorithm
+    # 3. Associate unique (non-logo) images with questions using a sequential proximity algorithm
     unassigned_images_by_page = {}
     for page_idx, images in page_images_map.items():
         content_images = [img for img in images if img not in logo_images]
         if content_images:
             unassigned_images_by_page[page_idx] = list(content_images)
 
-    def try_match(image_page, candidate_questions, keyword_only=False):
-        if image_page not in unassigned_images_by_page or not unassigned_images_by_page[image_page]:
-            return
-        
-        images_left = unassigned_images_by_page[image_page]
-        new_images_left = []
-        
-        for img in images_left:
-            matched = False
-            for q in candidate_questions:
-                if 'imageUrl' not in q:
-                    if not keyword_only or question_needs_image(q):
-                        q['imageUrl'] = img
-                        matched = True
-                        break
-            if not matched:
-                new_images_left.append(img)
-        
-        if new_images_left:
-            unassigned_images_by_page[image_page] = new_images_left
-        else:
-            unassigned_images_by_page.pop(image_page, None)
+    # Pass 1: Match questions that need an image to the closest unassigned images in sequential order
+    for q in questions:
+        if question_needs_image(q):
+            # Look for an image in pages near the question
+            for offset in [0, 1, -1, 2, -2]:
+                target_page = q['page_idx'] + offset
+                if target_page in unassigned_images_by_page and unassigned_images_by_page[target_page]:
+                    q['imageUrl'] = unassigned_images_by_page[target_page].pop(0)
+                    break
 
-    # Pass 1: Same page, keyword priority
-    for page_idx in range(total_pages):
-        qs = page_questions.get(page_idx, [])
-        try_match(page_idx, qs, keyword_only=True)
-
-    # Pass 2: Same page, fallback
-    for page_idx in range(total_pages):
-        qs = page_questions.get(page_idx, [])
-        try_match(page_idx, qs, keyword_only=False)
-
-    # Pass 3: Proximity ±1, keyword priority
-    for page_idx in range(total_pages):
-        for offset in [1, -1]:
-            target_page = page_idx + offset
-            if 0 <= target_page < total_pages:
-                qs = page_questions.get(target_page, [])
-                try_match(page_idx, qs, keyword_only=True)
-
-    # Pass 4: Proximity ±2, keyword priority
-    for page_idx in range(total_pages):
-        for offset in [2, -2]:
-            target_page = page_idx + offset
-            if 0 <= target_page < total_pages:
-                qs = page_questions.get(target_page, [])
-                try_match(page_idx, qs, keyword_only=True)
-
-    # Pass 5: Proximity ±1, ±2, fallback
-    for page_idx in range(total_pages):
-        for offset in [1, -1, 2, -2]:
-            target_page = page_idx + offset
-            if 0 <= target_page < total_pages:
-                qs = page_questions.get(target_page, [])
-                try_match(page_idx, qs, keyword_only=False)
+    # Pass 2: Fallback - match any remaining unassigned images to questions without images nearby
+    for q in questions:
+        if 'imageUrl' not in q:
+            for offset in [0, 1, -1, 2, -2]:
+                target_page = q['page_idx'] + offset
+                if target_page in unassigned_images_by_page and unassigned_images_by_page[target_page]:
+                    q['imageUrl'] = unassigned_images_by_page[target_page].pop(0)
+                    break
 
 
 
