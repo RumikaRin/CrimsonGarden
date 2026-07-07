@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { hashSync } from 'bcryptjs';
+import { jwt } from '@/lib/jwt';
+import { cookies } from 'next/headers';
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,6 +36,23 @@ export async function POST(req: NextRequest) {
         password: hashSync(password, 12),
         role: 'STUDENT'
       }
+    });
+
+    // 1. Tạo JWT Token
+    const token = jwt.sign({
+      userId: newUser.id,
+      email: newUser.email,
+      role: newUser.role
+    });
+
+    // 2. Set Cookie HttpOnly
+    const cookieStore = await cookies();
+    cookieStore.set('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 // 7 ngày
     });
 
     return NextResponse.json({

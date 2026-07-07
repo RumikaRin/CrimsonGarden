@@ -42,7 +42,7 @@ export default function ReviewNotebook() {
           <button
             type="button"
             onClick={() => router.push('/quiz')}
-            className="mt-7 min-h-11 px-5 rounded-xl bg-[var(--accent)] text-white text-sm font-semibold inline-flex items-center gap-2"
+            className="mt-7 min-h-11 px-5 rounded-xl bg-[var(--accent)] text-[var(--accent-foreground)] text-sm font-semibold inline-flex items-center gap-2"
           >
             Làm đề đầu tiên <ArrowRight className="w-4 h-4" />
           </button>
@@ -171,7 +171,7 @@ export default function ReviewNotebook() {
             <button
               type="button"
               onClick={() => retryExam(selected.examId)}
-              className="mt-7 min-h-11 px-5 rounded-xl bg-[var(--accent)] text-white text-sm font-semibold inline-flex items-center gap-2"
+              className="mt-7 min-h-11 px-5 rounded-xl bg-[var(--accent)] text-[var(--accent-foreground)] text-sm font-semibold inline-flex items-center gap-2"
             >
               <RotateCcw className="w-4 h-4" /> Làm lại đề này
             </button>

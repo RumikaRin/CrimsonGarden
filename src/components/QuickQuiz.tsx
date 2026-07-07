@@ -115,7 +115,7 @@ export default function QuickQuiz() {
             <h2 className="flex items-center gap-2 font-serif text-lg font-bold text-[var(--text-primary)]"><Layers3 className="h-5 w-5 text-[var(--accent)]" /> Số câu trong lượt</h2>
             <div className="mt-3 grid grid-cols-4 gap-2 sm:flex">
               {[5, 10, 15, 20].map((count) => (
-                <button type="button" key={count} onClick={() => setQuestionCount(count)} className={cn('h-11 min-w-0 rounded-xl border text-xs font-bold sm:min-w-11', questionCount === count ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : 'border-[var(--border-default)] text-[var(--text-secondary)]')}>{count}</button>
+                <button type="button" key={count} onClick={() => setQuestionCount(count)} className={cn('h-11 min-w-0 rounded-xl border text-xs font-bold sm:min-w-11', questionCount === count ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-foreground)]' : 'border-[var(--border-default)] text-[var(--text-secondary)]')}>{count}</button>
               ))}
             </div>
           </div>
@@ -135,7 +135,7 @@ export default function QuickQuiz() {
         <h1 className="mt-2 font-serif text-3xl font-bold text-[var(--text-primary)] sm:text-4xl">Bạn đạt {score} điểm</h1>
         <p className="mt-3 text-sm text-[var(--text-secondary)]">Điểm đã được cộng vào thành tích game và điểm thi đua.</p>
         <div className="mt-8 grid gap-3 sm:flex sm:flex-wrap">
-          <button type="button" onClick={startQuiz} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 text-xs font-bold uppercase tracking-wider text-white sm:w-auto"><RotateCcw className="h-4 w-4" /> Trộn lại</button>
+          <button type="button" onClick={startQuiz} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 text-xs font-bold uppercase tracking-wider text-[var(--accent-foreground)] sm:w-auto"><RotateCcw className="h-4 w-4" /> Trộn lại</button>
           <button type="button" onClick={() => setStarted(false)} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] px-5 text-xs font-bold uppercase tracking-wider text-[var(--text-primary)] sm:w-auto">Chọn đề khác</button>
           <button type="button" onClick={() => router.push('/leaderboard')} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] px-5 text-xs font-bold uppercase tracking-wider text-[var(--text-primary)] sm:w-auto">Bảng xếp hạng <ArrowRight className="h-4 w-4" /></button>
         </div>

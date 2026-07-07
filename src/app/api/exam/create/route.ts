@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { findExamOwner, findRealUser, isPlaceholderUserId } from '@/lib/users';
+import { memoryCache } from '@/lib/cache';
 
 export async function POST(req: NextRequest) {
   try {
@@ -63,6 +64,9 @@ export async function POST(req: NextRequest) {
         }
       }
     });
+
+    // Invalidate cache
+    memoryCache.delete('exams:list');
 
     return NextResponse.json({ success: true, exam: newExam });
   } catch (err: any) {

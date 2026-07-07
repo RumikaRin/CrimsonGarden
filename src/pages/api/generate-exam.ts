@@ -94,7 +94,7 @@ async function runGeminiParser(base64Data: string, mimeType: string, fileName: s
 
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
+    model: 'gemini-3.5-flash',
     generationConfig: { responseMimeType: 'application/json' }
   });
 
@@ -110,7 +110,7 @@ Yêu cầu chi tiết:
     - Tiêu đề đề thi sinh động, hấp dẫn bằng tiếng Việt.
     - Mô tả ngắn giới thiệu chủ đề ôn tập.
     - Thời gian làm bài hợp lý (trung bình 1.5 đến 2 phút cho mỗi câu).
-    - Hãy trích xuất và bóc tách NHIỀU câu hỏi nhất có thể (tối đa 40 câu, phân bố đều từ đầu đến cuối tài liệu). Nếu tài liệu không có câu hỏi trắc nghiệm sẵn, hãy biên soạn 20-30 câu chất lượng cao dựa trên nội dung tài liệu.
+    - Hãy trích xuất và bóc tách TOÀN BỘ câu hỏi trắc nghiệm có trong tài liệu này (không giới hạn số lượng câu hỏi, bóc tách đầy đủ từ đầu đến cuối tài liệu). Nếu tài liệu không có câu hỏi trắc nghiệm sẵn, hãy biên soạn 20-30 câu chất lượng cao dựa trên nội dung tài liệu.
     - Mỗi câu hỏi có 4 lựa chọn (A, B, C, D) với ĐÁP ÁN ĐÚNG DUY NHẤT và GIẢI THÍCH chi tiết bằng tiếng Việt.
 3. QUAN TRỌNG VỀ HÌNH ẢNH:
    - Nếu câu hỏi liên quan trực tiếp đến một hình ảnh trong tài liệu, hãy thiết kế lại hình ảnh đó thành mã SVG tự dựng (trong trường "imageSvg"), responsive, màu chalk #F2EFE7 và crimson #DC143C.
@@ -220,9 +220,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (!process.env.VERCEL) {
           try {
             console.log(`[Local Python] Parsing PDF: "${fileName}"...`);
-            finalExamData = await runLocalPdfParser(fileData);
-            pythonSuccess = true;
-            console.log(`[Local Python] Success: ${finalExamData!.questions.length} questions extracted.`);
+            const localExam = await runLocalPdfParser(fileData);
+            if (localExam && localExam.questions && localExam.questions.length > 0) {
+              finalExamData = localExam;
+              pythonSuccess = true;
+              console.log(`[Local Python] Success: ${localExam.questions.length} questions extracted.`);
+            } else {
+              console.warn('[Local Python] Parsed successfully but 0 questions found. Falling back to Gemini.');
+            }
           } catch (pythonErr) {
             console.warn('[Local Python] Failed, falling back to Gemini:', getErrorMessage(pythonErr, 'unknown'));
           }
@@ -247,8 +252,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       finalExamData = parsedExam;
     }
 
-    if (!finalExamData) {
-      return res.status(500).json({ success: false, error: 'Không thể xử lý dữ liệu đề thi.' });
+    if (!finalExamData || !finalExamData.questions || finalExamData.questions.length === 0) {
+      return res.status(400).json({ success: false, error: 'Không thể bóc tách hoặc tìm thấy câu hỏi trắc nghiệm nào trong tài liệu này.' });
     }
 
     console.log(`[Offline Sync] Saving parsed exam from file: "${fileName}" to Prisma DB...`);

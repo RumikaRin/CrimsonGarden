@@ -212,7 +212,10 @@ export const useExamStore = create<ExamStore>()(
         );
       },
 
-      logout: () => set({ currentUser: null }),
+      logout: () => {
+        fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+        set({ currentUser: null });
+      },
 
       recordActivity: () => {
         const today = new Date().toISOString();
@@ -272,7 +275,13 @@ export const useExamStore = create<ExamStore>()(
       fetchCloudExams: async () => {
         if (get().isExamsFetched) return;
         try {
-          const res = await fetch('/api/exam/list');
+          // Timeout after 15s to prevent 70-180s hangs when DB/network is slow
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15_000);
+
+          const res = await fetch('/api/exam/list', { signal: controller.signal });
+          clearTimeout(timeoutId);
+
           if (res.ok) {
             const data = await res.json();
             if (data.success && data.exams) {
@@ -317,7 +326,12 @@ export const useExamStore = create<ExamStore>()(
             }
           }
         } catch (err) {
-          console.warn('Fetch cloud exams error:', err);
+          // AbortError = timeout, other = network error — both are non-fatal
+          if (err instanceof DOMException && err.name === 'AbortError') {
+            console.warn('Fetch cloud exams timed out after 15s — using local data.');
+          } else {
+            console.warn('Fetch cloud exams error:', err);
+          }
         }
       },
 
@@ -617,7 +631,13 @@ export const useExamStore = create<ExamStore>()(
       },
 
       syncOfflineData: async () => {
-        const { exams, pendingExamIds, attempts, gameScores } = get();
+        const { exams, pendingExamIds, attempts, gameScores, currentUser } = get();
+
+        // Skip sync entirely when user is not logged in — prevents 401 spam
+        const PLACEHOLDER_IDS = new Set(['student-curr', 'guest']);
+        if (!currentUser || PLACEHOLDER_IDS.has(currentUser.id)) {
+          return;
+        }
 
         // 1. Sync exams created while offline
         for (const examId of pendingExamIds) {
@@ -630,7 +650,7 @@ export const useExamStore = create<ExamStore>()(
               body: JSON.stringify({ exam }),
             });
             const data = await res.json() as { success?: boolean };
-            if (res.ok && data.success) {
+            if ((res.ok && data.success) || res.status === 401) {
               set((state) => ({
                 pendingExamIds: state.pendingExamIds.filter((id) => id !== examId),
               }));
@@ -658,6 +678,13 @@ export const useExamStore = create<ExamStore>()(
                     )
                   }));
                 }
+              } else if (res.status === 401) {
+                // User not authorized — stop retrying this item
+                set((state) => ({
+                  attempts: state.attempts.map((a) =>
+                    a.id === att.id ? { ...a, synced: true } : a
+                  )
+                }));
               }
             } catch (err) {
               console.warn(`Sync attempt ${att.id} error:`, err);
@@ -683,6 +710,13 @@ export const useExamStore = create<ExamStore>()(
                     )
                   }));
                 }
+              } else if (res.status === 401) {
+                // User not authorized — stop retrying this item
+                set((state) => ({
+                  gameScores: state.gameScores.map((s) =>
+                    s.id === score.id ? { ...s, synced: true } : s
+                  )
+                }));
               }
             } catch (err) {
               console.warn(`Sync game score ${score.id} error:`, err);

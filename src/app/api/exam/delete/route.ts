@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
+import { memoryCache } from '@/lib/cache';
 
 interface DeleteExamBody {
   examId?: unknown;
@@ -43,6 +44,9 @@ export async function DELETE(req: NextRequest) {
       const examDelete = await tx.exam.deleteMany({ where: { id: examId } });
       return examDelete.count;
     });
+
+    // Invalidate cache
+    memoryCache.delete('exams:list');
 
     return NextResponse.json({ success: true, deleted: deletedCount > 0 });
   } catch (error: unknown) {

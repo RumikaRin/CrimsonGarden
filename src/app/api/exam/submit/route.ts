@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { findRealUser, isPlaceholderUserId } from '@/lib/users';
+import { memoryCache } from '@/lib/cache';
+import { jwt } from '@/lib/jwt';
 
 interface ExamAttemptBody {
   id?: unknown;
@@ -42,6 +44,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Vui lòng đăng nhập để lưu kết quả thi.' }, { status: 401 });
     }
 
+    // Xác thực token JWT
+    const cookieHeader = req.headers.get('cookie');
+    const token = jwt.getTokenFromCookieString(cookieHeader);
+    const decoded = jwt.verify(token || '');
+    if (!decoded || decoded.userId !== userId) {
+      return NextResponse.json({ success: false, error: 'Phiên đăng nhập đã hết hạn hoặc không hợp lệ.' }, { status: 401 });
+    }
+
     const [dbUser, existingExam] = await Promise.all([
       findRealUser(prisma, userId),
       prisma.exam.findUnique({ where: { id: examId }, select: { id: true } }),
@@ -72,6 +82,10 @@ export async function POST(req: NextRequest) {
         endedAt: parseOptionalDate(attemptData.endedAt),
       },
     });
+
+    // Invalidate cache
+    memoryCache.delete('leaderboard:list');
+    memoryCache.delete('leaderboard:stats');
 
     return NextResponse.json({ success: true, attempt });
   } catch (error: unknown) {

@@ -3,6 +3,7 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import { getPrisma } from './src/lib/prisma';
+import { memoryCache } from './src/lib/cache';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -479,8 +480,20 @@ app.post('/api/generate-exam', async (req, res) => {
       
       if (isPdf) {
         console.log(`[Local Parser] Parsing PDF locally: "${fileName}"...`);
-        finalExamData = await runLocalPdfParser(fileData);
-      } else {
+        try {
+          const localExam = await runLocalPdfParser(fileData);
+          if (localExam && localExam.questions && localExam.questions.length > 0) {
+            finalExamData = localExam;
+            console.log(`[Local Parser] Success: ${finalExamData.questions.length} questions extracted locally.`);
+          } else {
+            console.warn('[Local Parser] Local PDF parser returned 0 questions. Falling back to Gemini...');
+          }
+        } catch (pdfErr) {
+          console.warn('[Local Parser] Local PDF parser failed. Falling back to Gemini...', pdfErr);
+        }
+      }
+
+      if (!finalExamData) {
         console.log(`[Gemini Engine] Generating exam based on uploaded file: "${fileName}"...`);
         const parsed = parseBase64(fileData);
         if (!parsed) {
@@ -500,8 +513,8 @@ Yêu cầu chi tiết:
     - Tiêu đề đề thi sinh động, hấp dẫn bằng tiếng Việt.
     - Mô tả ngắn giới thiệu chủ đề ôn tập.
     - Thời gian làm bài hợp lý (tính toán dựa trên số lượng câu hỏi thực tế được bóc tách, trung bình 1.5 đến 2 phút cho mỗi câu).
-    - Hãy trích xuất và bóc tách nhiều câu hỏi nhất có thể từ tệp tài liệu này (tối đa khoảng 30 đến 40 câu hỏi trắc nghiệm phân bố đều từ đầu đến cuối tài liệu để đảm bảo bao phủ đầy đủ kiến thức và không vượt quá giới hạn ký tự phản hồi của hệ thống). Nếu tài liệu không chứa các câu hỏi trắc nghiệm sẵn có, hãy tự động biên soạn khoảng 20 đến 30 câu hỏi trắc nghiệm tiếng Anh chất lượng cao dựa trên nội dung/chủ đề ôn tập của tài liệu.
-    - Mỗi câu hỏi có 4 lựa chọn (A, B, C, D) với ĐÁP ÁN ĐÚNG DUY NHẤT và GIẢI THÍCH chi tiết vì sao đúng bằng tiếng Việt.
+    - Hãy trích xuất và bóc tách TOÀN BỘ câu hỏi trắc nghiệm từ tệp tài liệu này (không giới hạn số lượng câu hỏi, bóc tách đầy đủ từ đầu đến cuối tài liệu). Nếu tài liệu không chứa các câu hỏi trắc nghiệm sẵn có, hãy tự động biên soạn khoảng 20 đến 30 câu hỏi trắc nghiệm tiếng Anh chất lượng cao dựa trên nội dung/chủ đề ôn tập của tài liệu.
+    - Mỗi câu hỏi có 4 lựa chọn (A, B, C, D) with ĐÁP ÁN ĐÚNG DUY NHẤT và GIẢI THÍCH chi tiết vì sao đúng bằng tiếng Việt.
 3. QUAN TRỌNG VỀ HÌNH ẢNH:
    - Nếu tài liệu là hình ảnh duy nhất (ví dụ: ảnh chụp 1 trang đề thi) hoặc nếu câu hỏi đó liên quan trực tiếp đến hình ảnh duy nhất này, hãy đặt trường "imageUrl" của câu hỏi đó là "uploaded_file".
    - Nếu trong tài liệu có hình ảnh/hình minh họa/biển báo/sơ đồ cụ thể cho từng câu hỏi, hãy thiết kế lại hình ảnh minh họa đó thành mã nguồn SVG tự dựng (chứa trong trường "imageSvg" của câu hỏi đó dưới dạng một chuỗi HTML SVG hoàn chỉnh, tự co giãn responsive và có thiết kế hiện đại, tinh tế với màu sắc chalk #F2EFE7 và crimson #DC143C). Nếu không cần hình ảnh cho câu hỏi đó, hãy bỏ trống trường "imageUrl" và "imageSvg".
@@ -688,6 +701,10 @@ Hãy xuất kết quả chính xác theo định dạng JSON Schema sau:
       finalExamData = generated;
     }
 
+    if (!finalExamData || !finalExamData.questions || finalExamData.questions.length === 0) {
+      return res.status(400).json({ success: false, error: 'Không thể bóc tách hoặc tìm thấy câu hỏi trắc nghiệm nào trong tài liệu này.' });
+    }
+
     // Dynamic ID Mapping to perfectly fit the UI / types.ts requirements
     const examId = `gen-exam-${Date.now()}`;
     const mappedQuestions = (finalExamData.questions || []).map((q: any, qIdx: number) => {
@@ -757,6 +774,9 @@ Hãy xuất kết quả chính xác theo định dạng JSON Schema sau:
       console.warn('[DB Error] Could not persist generated exam to SQL database, fallback to frontend state-only:', saveError);
     }
 
+    // Invalidate cache
+    memoryCache.delete('exams:list');
+
     return res.json({ success: true, exam: newExam });
   } catch (err: any) {
     console.error('[Gemini AI Parse Error]:', err);
@@ -775,6 +795,14 @@ app.post('/api/exam/submit', async (req, res) => {
   try {
     const prisma = getPrisma();
     const cleanUserId = attemptData.userId || 'student-curr';
+
+    // Xác thực token JWT
+    const cookieHeader = req.headers.cookie;
+    const token = jwt.getTokenFromCookieString(cookieHeader);
+    const decoded = jwt.verify(token || '');
+    if (!decoded || decoded.userId !== cleanUserId) {
+      return res.status(401).json({ success: false, error: 'Phiên đăng nhập đã hết hạn hoặc không hợp lệ.' });
+    }
 
     // Guard 1: Ensure user is created in User table
     const dbUser = await ensureUserExists(cleanUserId);
@@ -798,6 +826,10 @@ app.post('/api/exam/submit', async (req, res) => {
     });
 
     console.log(`[DB Success] Exam attempt successfully saved to Prisma Neon PostgreSQL. Attempt ID: ${attempt.id}`);
+    // Invalidate cache
+    memoryCache.delete('leaderboard:list');
+    memoryCache.delete('leaderboard:stats');
+
     return res.json({ success: true, attempt });
   } catch (err: any) {
     console.error('[Prisma Exam Submit Error]:', err);
@@ -822,6 +854,14 @@ app.post('/api/game/score', async (req, res) => {
     const prisma = getPrisma();
     const cleanUserId = scoreData.userId || 'student-curr';
 
+    // Xác thực token JWT
+    const cookieHeader = req.headers.cookie;
+    const token = jwt.getTokenFromCookieString(cookieHeader);
+    const decoded = jwt.verify(token || '');
+    if (!decoded || decoded.userId !== cleanUserId) {
+      return res.status(401).json({ success: false, error: 'Phiên đăng nhập đã hết hạn hoặc không hợp lệ.' });
+    }
+
     // Guard 1: Ensure user is created in database first
     const dbUser = await ensureUserExists(cleanUserId);
     const resolvedUserId = dbUser ? dbUser.id : cleanUserId;
@@ -839,6 +879,10 @@ app.post('/api/game/score', async (req, res) => {
     });
 
     console.log(`[DB Success] Game score persisted to Neon PostgreSQL. Entry ID: ${savedScore.id}`);
+    // Invalidate cache
+    memoryCache.delete('leaderboard:list');
+    memoryCache.delete('leaderboard:stats');
+
     return res.json({ success: true, entry: savedScore });
   } catch (err: any) {
     console.error('[Prisma Game Score Error]:', err);

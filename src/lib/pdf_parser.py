@@ -179,8 +179,8 @@ def clean_spaces(text):
 def should_ignore_line(line_str):
     line_lower = line_str.lower()
     
-    # If the line starts a question (has a colon), do NOT ignore it
-    if re.match(r'^C\s*â\s*u\s*\d+\s*:', line_str, re.IGNORECASE):
+    # If the line starts a question, do NOT ignore it
+    if re.match(r'^(?:C\s*â\s*u|Question|Q)?\s*\d+\s*[\.\:\)]', line_str, re.IGNORECASE):
         return False
         
     # 1. Question metadata like "Câu 1 (Một đáp án)" as a standalone line
@@ -418,8 +418,8 @@ def parse_pdf(pdf_path):
             if not line_str or should_ignore_line(line_str):
                 continue
 
-            # Match: Câu 1: (or Câu 1 (Một đáp án))
-            q_match = re.match(r'^C\s*â\s*u\s*(\d+)\s*:\s*(.+)$', line_str, re.IGNORECASE)
+            # Match: Câu 1:, Câu 1., Question 1:, Q1., 1. , etc.
+            q_match = re.match(r'^(?:C\s*â\s*u|Question|Q)?\s*(\d+)\s*[\.\:\)]\s*(.+)$', line_str, re.IGNORECASE)
             if q_match:
                 q_num = int(q_match.group(1))
                 q_text = q_match.group(2)

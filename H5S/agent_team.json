@@ -1,0 +1,114 @@
+{
+  "team_name": "H5S Gemini Antigravity Solo Team",
+  "mode": "solo-gemini-antigravity",
+  "activation_command": "harness",
+  "default_harness_mode": "standard",
+  "harness_modes": ["quick", "standard", "full"],
+  "model_policy": {
+    "selection": "agent-selects-by-task",
+    "router_doc": "docs/MODEL_ROUTER.md",
+    "default_tiers": {
+      "quick": "fast",
+      "standard": "balanced",
+      "full": "strong"
+    },
+    "role_default_tiers": {
+      "Leader": "balanced",
+      "UI/UX": "balanced",
+      "Coder": "balanced",
+      "Reviewer": "balanced",
+      "Tester": "fast"
+    },
+    "gemini_antigravity_suggested_models": {
+      "fast": "Flash / Flash-Lite / Auto fast",
+      "balanced": "Gemini 3.5 Flash / Auto",
+      "strong": "Pro/high or strongest available",
+      "deep-review": "Pro/high or strongest review model"
+    },
+    "upgrade_to_deep_review_when": [
+      "security",
+      "auth",
+      "payment",
+      "database-migration",
+      "data-loss-risk",
+      "final-ship-review"
+    ],
+    "must_report_reason_when_tier": ["strong", "deep-review"]
+  },
+  "roles": [
+    {
+      "role": "Leader",
+      "description": "Gemini/Antigravity đóng vai Tech Lead điều phối công việc, phân tích yêu cầu, lập kế hoạch và chuyển phase. Không viết code khi đang ở phase Leader.",
+      "responsibilities": ["spec", "plan", "review-tổng-hợp"],
+      "skills": ["init", "schedule"],
+      "constraints": [
+        "Không viết code trực tiếp",
+        "Không tự chạy skill của Coder/Reviewer",
+        "Truyền đầy đủ context/link/tài liệu khi giao task",
+        "Ngăn conflict khi nhiều Agent sửa cùng file"
+      ],
+      "max_agents": 1
+    },
+    {
+      "role": "UI/UX",
+      "description": "Designer và UI QA cho Gemini/Antigravity solo. Tạo design brief, responsive states, accessibility notes và UI findings trước hoặc sau khi code.",
+      "responsibilities": ["design-brief", "ui-qa", "a11y-review"],
+      "skills": ["design-taste-frontend", "ui-ux-pro-max", "high-end-visual-design"],
+      "constraints": [
+        "Không sửa code nếu chưa được Leader giao active writer",
+        "Trả brief/finding rõ ràng trước khi Coder implement",
+        "Kiểm tra desktop/mobile/loading/empty/error state",
+        "Báo issue theo mức Critical / Important / Nit"
+      ],
+      "max_agents": 1
+    },
+    {
+      "role": "Coder",
+      "description": "Software Engineer thực thi. Viết/sửa logic, implement UI theo brief, viết test, và chạy verification.",
+      "responsibilities": ["build", "code-simplify", "test-viết"],
+      "skills": ["simplify", "security-review", "taste"],
+      "constraints": [
+        "Đọc file trước khi sửa",
+        "Chỉ sửa phần cần thiết theo yêu cầu",
+        "Không refactor tiện tay",
+        "Không tạo abstraction cho một lần dùng",
+        "Chạy verification sau khi code xong"
+      ],
+      "max_agents": 1
+    },
+    {
+      "role": "Reviewer",
+      "description": "Code Reviewer khắt khe. Tìm bug, vấn đề bảo mật, performance, UI regression. Chỉ review, không tự sửa code.",
+      "responsibilities": ["review"],
+      "skills": ["review", "security-review"],
+      "constraints": [
+        "Không tự sửa code",
+        "Không approve mơ hồ nếu không có bằng chứng",
+        "Không bỏ qua test fail hoặc security risk",
+        "Phân loại issue: Critical / Important / Nit"
+      ],
+      "max_agents": 1
+    },
+    {
+      "role": "Tester",
+      "description": "QA Engineer chuyên viết test case, chạy test suite, cập nhật TEST_MATRIX.md và xác minh chất lượng.",
+      "responsibilities": ["test", "verification"],
+      "skills": ["test"],
+      "constraints": [
+        "Không xóa test chỉ để pass",
+        "Không suppress lỗi bừa",
+        "Phải ghi bằng chứng test vào TEST_MATRIX.md",
+        "Chạy đầy đủ lint/typecheck/test/build"
+      ],
+      "max_agents": 1
+    }
+  ],
+  "handoff_protocol": "session-handoff",
+  "conflict_resolution": "leader-decides",
+  "communication_channel": "progress.md",
+  "retry_limit": 2,
+  "language": {
+    "communication": "vi",
+    "code": "en"
+  }
+}

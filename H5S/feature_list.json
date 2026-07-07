@@ -1,0 +1,18 @@
+[
+  {
+    "id": "CLEAN-JUNK",
+    "name": "Clean junk files from workspace",
+    "status": "Completed",
+    "dependencies": [],
+    "priority": "High",
+    "description": "Remove temporary images, debug scripts, logs, and tmp-qa folder to clean up the workspace."
+  },
+  {
+    "id": "UI-REDESIGN",
+    "name": "Redesign entire application UI",
+    "status": "Completed",
+    "dependencies": [],
+    "priority": "High",
+    "description": "Redesign app shell, learning screens, login and auxiliary features according to Crimson Academy design system."
+  }
+]
