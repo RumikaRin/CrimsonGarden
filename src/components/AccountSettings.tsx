@@ -9,13 +9,15 @@ import {
   ArrowLeft, User, Mail, Phone, FileText, Save,
   Flame, AlertCircle, CheckCircle, Lock
 } from 'lucide-react';
+import { getThemeTokens } from '@/lib/theme';
 
 export default function AccountSettings() {
   const router = useRouter();
   const { currentUser, theme, activityDates, updateProfile } = useExamStore();
   const isGreen = theme === 'neon';
-  const accent = isGreen ? '#224334' : '#DC143C';
-  const bgPage = isGreen ? '#f4faf0' : '#F2EFE7';
+  const tokens = getThemeTokens(theme);
+  const accent = tokens.accent;
+  const bgPage = tokens.pageBg;
 
   const streak = computeStreak(activityDates);
   const totalDays = Array.from(new Set(activityDates.map(d => new Date(d).toISOString().slice(0, 10)))).length;
@@ -47,7 +49,7 @@ export default function AccountSettings() {
     }
   };
 
-  const inputClass = cn('w-full px-4 py-2.5 rounded-xl border text-sm font-sans text-[#1A1814] outline-none transition-all bg-neutral-50 focus:bg-white');
+  const inputClass = cn('w-full px-4 py-2.5 rounded-xl border border-[var(--border-default)] text-sm font-sans text-[var(--text-primary)] outline-none transition-all bg-[var(--surface-raised)] focus:border-[var(--accent)]');
 
   const springEase: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
@@ -82,20 +84,20 @@ export default function AccountSettings() {
       >
         {/* Header */}
         <motion.div
-          className="px-6 py-5 flex items-center gap-4 border-b"
-          style={{ backgroundColor: bgPage, borderColor: isGreen ? '#22433420' : '#e5e7eb' }}
+          className="px-4 py-4 flex items-center gap-3 border-b sm:px-6 sm:py-5 sm:gap-4"
+          style={{ backgroundColor: bgPage, borderColor: tokens.cardBorder }}
           variants={item}
           initial="initial"
           animate="animate"
         >
           <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center text-base font-bold text-white shrink-0"
-            style={{ backgroundColor: accent }}
+            className="w-12 h-12 rounded-xl flex items-center justify-center text-base font-bold shrink-0"
+            style={{ backgroundColor: accent, color: tokens.fgInverse }}
           >
             {initials}
           </div>
           <div>
-            <h2 className="font-serif text-lg font-bold text-[#1A1814]">Cài Đặt Tài Khoản</h2>
+            <h2 className="font-serif text-lg font-bold text-[var(--text-primary)]">Cài Đặt Tài Khoản</h2>
             <p className="text-[10px] font-sans text-neutral-400 uppercase tracking-widest">
               {currentUser.role === 'ADMIN' ? 'Giáo Viên / Admin' : 'Học Sinh'}
             </p>
@@ -105,7 +107,7 @@ export default function AccountSettings() {
         {/* Stats bar */}
         <motion.div
           className="grid grid-cols-3 divide-x"
-          style={{ borderColor: isGreen ? '#22433415' : '#f0f0f0' }}
+          style={{ borderColor: tokens.cardBorder }}
           variants={stagger}
           initial="initial"
           animate="animate"
@@ -115,18 +117,18 @@ export default function AccountSettings() {
             { label: 'Ngày học', value: `${totalDays} ngày` },
             { label: 'Vai trò', value: currentUser.role === 'ADMIN' ? 'Giáo viên' : 'Học sinh' },
           ].map(({ label, value, accent: isAccent }) => (
-            <motion.div key={label} variants={item} className="flex flex-col items-center py-4 px-4 bg-neutral-50/80">
+            <motion.div key={label} variants={item} className="flex flex-col items-center py-3 px-1 bg-[var(--surface-soft)] sm:py-4 sm:px-4">
               <span className="text-[9px] font-sans font-bold uppercase tracking-widest text-neutral-400">{label}</span>
               <span
-                className="text-sm font-mono font-bold mt-0.5"
-                style={{ color: isAccent ? accent : '#1A1814' }}
+                className="text-xs font-mono font-bold mt-0.5 text-center sm:text-sm"
+                style={{ color: isAccent ? accent : tokens.fg }}
               >{value}</span>
             </motion.div>
           ))}
         </motion.div>
 
         {/* Form */}
-        <form onSubmit={handleSave} className="p-6 space-y-5">
+        <form onSubmit={handleSave} className="p-4 space-y-5 sm:p-6">
           {/* Email (read-only) */}
           <motion.div className="space-y-1.5" variants={item} initial="initial" animate="animate">
             <label className="text-[10px] font-sans font-bold uppercase tracking-widest text-neutral-400 flex items-center gap-1.5">
@@ -149,9 +151,9 @@ export default function AccountSettings() {
               onChange={(e) => setName(e.target.value)}
               placeholder="Nhập họ và tên..."
               className={inputClass}
-              style={{ borderColor: '#e5e7eb' }}
+              style={{ borderColor: tokens.cardBorder }}
               onFocus={(e) => (e.target.style.borderColor = accent)}
-              onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')}
+              onBlur={(e) => (e.target.style.borderColor = tokens.cardBorder)}
             />
           </motion.div>
 
@@ -166,9 +168,9 @@ export default function AccountSettings() {
               onChange={(e) => setPhone(e.target.value)}
               placeholder="0912 345 678"
               className={inputClass}
-              style={{ borderColor: '#e5e7eb' }}
+              style={{ borderColor: tokens.cardBorder }}
               onFocus={(e) => (e.target.style.borderColor = accent)}
-              onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')}
+              onBlur={(e) => (e.target.style.borderColor = tokens.cardBorder)}
             />
           </motion.div>
 
@@ -183,9 +185,9 @@ export default function AccountSettings() {
               placeholder="Ví dụ: Học sinh lớp 12 trường THPT ABC, đang ôn thi đại học..."
               rows={3}
               className={cn(inputClass, 'resize-none')}
-              style={{ borderColor: '#e5e7eb' }}
+              style={{ borderColor: tokens.cardBorder }}
               onFocus={(e) => (e.target.style.borderColor = accent)}
-              onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')}
+              onBlur={(e) => (e.target.style.borderColor = tokens.cardBorder)}
             />
           </motion.div>
 
@@ -225,8 +227,8 @@ export default function AccountSettings() {
             <motion.button
               type="submit"
               disabled={saving}
-              className="flex-1 py-3 rounded-xl text-[11px] font-sans font-bold text-white flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60 shadow-md hover:shadow-lg"
-              style={{ backgroundColor: accent }}
+              className="flex-1 py-3 rounded-xl text-[11px] font-sans font-bold flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60 shadow-md hover:shadow-lg"
+              style={{ backgroundColor: accent, color: tokens.fgInverse }}
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.98 }}
             >

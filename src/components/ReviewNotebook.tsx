@@ -35,14 +35,14 @@ export default function ReviewNotebook() {
       <section className="max-w-4xl mx-auto min-h-[60dvh] flex items-center">
         <div className="w-full border-y border-[var(--border-default)] py-16 text-center">
           <BookOpenCheck className="w-10 h-10 mx-auto text-[var(--accent)]" />
-          <h1 className="font-serif text-3xl font-bold mt-5 text-[#1A1814]">Sổ câu sai đang trống</h1>
+          <h1 className="font-serif text-3xl font-bold mt-5 text-[var(--text-primary)]">Sổ câu sai đang trống</h1>
           <p className="mt-3 text-sm text-[var(--text-secondary)] max-w-md mx-auto">
             Hoàn thành một đề thi để hệ thống tự động gom câu sai và đề xuất nội dung cần ôn lại.
           </p>
           <button
             type="button"
             onClick={() => router.push('/quiz')}
-            className="mt-7 min-h-11 px-5 rounded-xl bg-[var(--accent)] text-white text-sm font-semibold inline-flex items-center gap-2"
+            className="mt-7 min-h-11 px-5 rounded-xl bg-[var(--accent)] text-[var(--accent-foreground)] text-sm font-semibold inline-flex items-center gap-2"
           >
             Làm đề đầu tiên <ArrowRight className="w-4 h-4" />
           </button>
@@ -57,10 +57,10 @@ export default function ReviewNotebook() {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-8"
     >
-      <header className="grid lg:grid-cols-12 gap-6 items-end border-b border-[var(--border-default)] pb-7">
+      <header className="grid lg:grid-cols-12 gap-5 items-end border-b border-[var(--border-default)] pb-6 sm:gap-6 sm:pb-7">
         <div className="lg:col-span-8">
           <p className="text-xs font-mono text-[var(--accent)] mb-3">Ôn tập thích ứng</p>
-          <h1 className="font-serif text-3xl md:text-5xl font-bold tracking-tight text-[#1A1814] text-balance">
+          <h1 className="font-serif text-3xl md:text-5xl font-bold tracking-tight text-[var(--text-primary)] text-balance">
             Sổ câu sai của bạn
           </h1>
           <p className="text-sm text-[var(--text-secondary)] mt-4 max-w-2xl leading-relaxed">
@@ -73,15 +73,15 @@ export default function ReviewNotebook() {
             { label: 'Đã trả lời', value: summary.answered },
             { label: 'Độ chính xác', value: `${summary.accuracy}%` },
           ].map((metric) => (
-            <div key={metric.label} className="py-4 px-3 text-center">
-              <p className="font-mono text-lg font-bold text-[#1A1814]">{metric.value}</p>
+            <div key={metric.label} className="py-3 px-1 text-center sm:py-4 sm:px-3">
+              <p className="font-mono text-lg font-bold text-[var(--text-primary)]">{metric.value}</p>
               <p className="text-[10px] text-[var(--text-secondary)] mt-1">{metric.label}</p>
             </div>
           ))}
         </div>
       </header>
 
-      <div className="grid lg:grid-cols-12 gap-8 items-start">
+      <div className="grid lg:grid-cols-12 gap-5 items-start sm:gap-8">
         <section className="lg:col-span-5 border-t border-[var(--border-default)]">
           {mistakes.map((item, index) => {
             const key = `${item.examId}:${item.question.id}`;
@@ -93,7 +93,7 @@ export default function ReviewNotebook() {
                 onClick={() => setSelectedKey(key)}
                 className={cn(
                   'w-full text-left py-5 border-b border-[var(--border-default)] grid grid-cols-[2.25rem_1fr_auto] gap-3 items-start',
-                  isSelected ? 'text-[var(--accent)]' : 'text-[#1A1814] hover:text-[var(--accent)]',
+                  isSelected ? 'text-[var(--accent)]' : 'text-[var(--text-primary)] hover:text-[var(--accent)]',
                 )}
               >
                 <span className="font-mono text-xs text-[var(--text-muted)] pt-0.5">
@@ -122,12 +122,24 @@ export default function ReviewNotebook() {
                 <p className="text-[10px] text-[var(--text-secondary)] font-mono">
                   Sai {selected.mistakeCount} lần · {new Date(selected.lastMissedAt).toLocaleDateString('vi-VN')}
                 </p>
-                <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#1A1814] mt-3 leading-snug">
+                <h2 className="font-serif text-xl sm:text-2xl font-bold text-[var(--text-primary)] mt-3 leading-snug">
                   {selected.question.content}
                 </h2>
               </div>
               <Target className="w-6 h-6 text-[var(--accent)] shrink-0" />
             </div>
+
+            {selected.question.imageUrl && (
+              <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--surface-soft)] flex items-center justify-center p-2 max-w-full mx-auto shadow-sm">
+                <img src={selected.question.imageUrl} alt="Hình ảnh câu hỏi" className="max-h-[280px] object-contain w-full rounded-xl" />
+              </div>
+            )}
+
+            {selected.question.imageSvg && (
+              <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--surface-soft)] p-4 flex items-center justify-center max-w-full mx-auto shadow-sm">
+                <div className="w-full h-auto text-neutral-800" dangerouslySetInnerHTML={{ __html: selected.question.imageSvg }} />
+              </div>
+            )}
 
             <div className="mt-7 space-y-2">
               {selected.question.answers.map((answer) => {
@@ -159,7 +171,7 @@ export default function ReviewNotebook() {
             <button
               type="button"
               onClick={() => retryExam(selected.examId)}
-              className="mt-7 min-h-11 px-5 rounded-xl bg-[var(--accent)] text-white text-sm font-semibold inline-flex items-center gap-2"
+              className="mt-7 min-h-11 px-5 rounded-xl bg-[var(--accent)] text-[var(--accent-foreground)] text-sm font-semibold inline-flex items-center gap-2"
             >
               <RotateCcw className="w-4 h-4" /> Làm lại đề này
             </button>

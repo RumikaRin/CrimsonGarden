@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { computeStreak, resolveDisplayName, shouldShowOnLeaderboard } from '@/lib/leaderboard';
+import { memoryCache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,12 @@ function toEntry<T extends Record<string, unknown>>(user: UserInfo | null | unde
 
 export async function GET() {
   try {
+    // 1. Kiểm tra cache trước
+    const cachedStats = memoryCache.get<{ streak: any[]; mostExams: any[]; competition: any[] }>('leaderboard:stats');
+    if (cachedStats) {
+      return NextResponse.json({ success: true, ...cachedStats, fromCache: true });
+    }
+
     const prisma = getPrisma();
     if (!prisma) {
       return NextResponse.json({ success: false, error: 'DB_OFFLINE' }, { status: 503 });
@@ -120,7 +127,12 @@ export async function GET() {
       .sort((a, b) => b.points - a.points)
       .slice(0, 10);
 
-    return NextResponse.json({ success: true, streak, mostExams, competition });
+    const statsResult = { streak, mostExams, competition };
+
+    // 2. Lưu cache trong 60 giây
+    memoryCache.set('leaderboard:stats', statsResult, 60);
+
+    return NextResponse.json({ success: true, ...statsResult });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error('[Leaderboard Stats Error]:', err);

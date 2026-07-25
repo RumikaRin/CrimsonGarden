@@ -38,10 +38,16 @@ ChartJS.register(
 );
 
 export default function AdminStatsDashboard() {
-  const { exams, attempts, gameScores, deleteExam } = useExamStore();
+  const { exams, attempts, gameScores, deleteExam, theme } = useExamStore();
+  const [deletingExamId, setDeletingExamId] = React.useState<string | null>(null);
+  const [deleteError, setDeleteError] = React.useState<string | null>(null);
   const isGreenTheme = useIsGreen();
+  const isDark = theme === 'dark';
   const accent = 'var(--accent)';
   const accentLight = 'var(--accent-light)';
+  const chartText = isDark ? '#A3A3A3' : '#57534E';
+  const chartGrid = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)';
+  const chartSurface = isDark ? '#111111' : '#FAF9F6';
 
   // 1. Metric Calculations from real data
   const totalQuizzes = exams.length;
@@ -81,6 +87,16 @@ export default function AdminStatsDashboard() {
     return 'Tổng hợp';
   };
 
+  const handleDeleteExam = async (examId: string) => {
+    setDeletingExamId(examId);
+    setDeleteError(null);
+    const result = await deleteExam(examId);
+    if (!result.success) {
+      setDeleteError(result.error || 'Không thể xóa đề thi.');
+    }
+    setDeletingExamId(null);
+  };
+
   // 2. Chart Config 1: Line Chart (Exam Attempts & Scores trend mapped to 100%)
   const lineChartData = {
     labels: attempts.map((_, i) => `Lượt ${i + 1}`).slice(-8),
@@ -107,7 +123,9 @@ export default function AdminStatsDashboard() {
         display: false,
       },
       tooltip: {
-        backgroundColor: '#1A1814',
+        backgroundColor: isDark ? '#F5F5F5' : '#1A1814',
+        titleColor: isDark ? '#0A0A0A' : '#F5F5F5',
+        bodyColor: isDark ? '#262626' : '#F5F5F5',
         titleFont: { family: 'serif', size: 12 },
         bodyFont: { family: 'sans-serif', size: 12 },
         padding: 10,
@@ -119,9 +137,10 @@ export default function AdminStatsDashboard() {
         min: 0,
         max: 100,
         grid: {
-          color: 'rgba(0,0,0,0.05)',
+          color: chartGrid,
         },
         ticks: {
+          color: chartText,
           font: { family: 'monospace', size: 10 }
         }
       },
@@ -130,6 +149,7 @@ export default function AdminStatsDashboard() {
           display: false,
         },
         ticks: {
+          color: chartText,
           font: { family: 'sans-serif', size: 10 }
         }
       }
@@ -170,9 +190,10 @@ export default function AdminStatsDashboard() {
       y: {
         min: 0,
         grid: {
-          color: 'rgba(0,0,0,0.05)',
+          color: chartGrid,
         },
         ticks: {
+          color: chartText,
           font: { family: 'monospace', size: 10 }
         }
       },
@@ -181,6 +202,7 @@ export default function AdminStatsDashboard() {
           display: false
         },
         ticks: {
+          color: chartText,
           font: { family: 'sans-serif', size: 11 }
         }
       }
@@ -200,7 +222,7 @@ export default function AdminStatsDashboard() {
           ? ['#224334', '#9ce5c1', '#79ab8e', '#e2f2d5'].slice(0, categoriesInDb.length || 1)
           : ['#DC143C', '#1A1814', '#F2EFE7', '#E2E8F0'].slice(0, categoriesInDb.length || 1),
         borderWidth: 2,
-        borderColor: '#ffffff',
+        borderColor: chartSurface,
       }
     ]
   };
@@ -212,6 +234,7 @@ export default function AdminStatsDashboard() {
       legend: {
         position: 'bottom' as const,
         labels: {
+          color: chartText,
           font: { family: 'sans-serif', size: 11 }
         }
       }
@@ -219,14 +242,14 @@ export default function AdminStatsDashboard() {
   };
 
   return (
-    <div className="card-layered p-6 space-y-8">
+    <div className="card-layered p-3 space-y-5 sm:p-6 sm:space-y-8">
       {/* Introduction Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <span className="text-[11px] font-sans font-bold tracking-widest uppercase block mb-1" style={{ color: accent }}>
             QUẢN TRỊ VIÊN ĐÀO TẠO & PHÂN TÍCH
           </span>
-          <h2 className="text-3xl font-serif font-semibold text-[#1A1814] tracking-tight">
+          <h2 className="text-3xl font-serif font-semibold text-[var(--text-primary)] tracking-tight">
             Dashboard Thống Kê & Quản Lý Đề Thi
           </h2>
           <p className="text-sm font-sans text-[var(--text-secondary)] mt-2 leading-relaxed">
@@ -234,51 +257,51 @@ export default function AdminStatsDashboard() {
           </p>
         </div>
 
-        <div className="flex bg-[#FAF9F6] border border-neutral-200 px-4 py-2 rounded-xl text-xs gap-2 items-center text-[var(--text-secondary)] font-sans shadow-sm shrink-0">
-          <Calendar className="w-4 h-4 text-neutral-400" />
+        <div className="flex bg-[var(--surface-soft)] border border-[var(--border-default)] px-4 py-2 rounded-xl text-xs gap-2 items-center text-[var(--text-secondary)] font-sans shadow-sm shrink-0">
+          <Calendar className="w-4 h-4 text-[var(--text-secondary)]" />
           <span>Học kỳ Hiện Tại: <strong>Spring 2026</strong></span>
         </div>
       </div>
 
       {/* Stats Widgets */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
 
         {/* KPI 1 */}
-        <div className="bg-[#FAF9F6] border border-neutral-200 rounded-2xl p-5 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
+        <div className="bg-[var(--card-bg)] border border-[var(--border-default)] rounded-2xl p-5 shadow-sm flex items-center gap-4 hover:border-[var(--accent)]/40 transition-all">
           <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: accentLight, color: accent }}>
             <Users className="w-6 h-6" />
           </div>
           <div>
-            <span className="text-[10px] font-serif font-semibold text-neutral-500 uppercase tracking-wider block">Tổng Học Sinh Active</span>
-            <span className="text-2xl font-serif font-bold text-[#1A1814]">{totalStudents || 1}</span>
-            <span className="text-[10px] font-sans flex items-center gap-1.5 mt-0.5 text-neutral-400">
+            <span className="text-[10px] font-serif font-semibold text-[var(--text-secondary)] uppercase tracking-wider block">Tổng Học Sinh Active</span>
+            <span className="text-2xl font-serif font-bold text-[var(--text-primary)]">{totalStudents || 1}</span>
+            <span className="text-[10px] font-sans flex items-center gap-1.5 mt-0.5 text-[var(--text-secondary)]">
               <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: accent }}></span> {totalAttempts + totalGames} lượt hoạt động
             </span>
           </div>
         </div>
 
         {/* KPI 2 */}
-        <div className="bg-[#FAF9F6] border border-neutral-200 rounded-2xl p-5 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
+        <div className="bg-[var(--card-bg)] border border-[var(--border-default)] rounded-2xl p-5 shadow-sm flex items-center gap-4 hover:border-[var(--accent)]/40 transition-all">
           <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: accentLight, color: accent }}>
             <Library className="w-6 h-6" />
           </div>
           <div>
-            <span className="text-[10px] font-serif font-semibold text-neutral-500 uppercase tracking-wider block">Ngân Hàng Đề Thi</span>
-            <span className="text-2xl font-serif font-bold text-[#1A1814]">{totalQuizzes} bộ đề</span>
-            <span className="text-[10px] text-neutral-500 mt-0.5 font-sans block">
+            <span className="text-[10px] font-serif font-semibold text-[var(--text-secondary)] uppercase tracking-wider block">Ngân Hàng Đề Thi</span>
+            <span className="text-2xl font-serif font-bold text-[var(--text-primary)]">{totalQuizzes} bộ đề</span>
+            <span className="text-[10px] text-[var(--text-secondary)] mt-0.5 font-sans block">
               {totalQuestions} câu hỏi
             </span>
           </div>
         </div>
 
         {/* KPI 3 */}
-        <div className="bg-[#FAF9F6] border border-neutral-200 rounded-2xl p-5 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
+        <div className="bg-[var(--card-bg)] border border-[var(--border-default)] rounded-2xl p-5 shadow-sm flex items-center gap-4 hover:border-[var(--accent)]/40 transition-all">
           <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: accentLight, color: accent }}>
             <Trophy className="w-6 h-6" />
           </div>
           <div>
-            <span className="text-[10px] font-serif font-semibold text-neutral-500 uppercase tracking-wider block">Kỷ lục Snake cao nhất</span>
-            <span className="text-2xl font-serif font-bold text-[#1A1814]">{highestSnake} điểm</span>
+            <span className="text-[10px] font-serif font-semibold text-[var(--text-secondary)] uppercase tracking-wider block">Kỷ lục Snake cao nhất</span>
+            <span className="text-2xl font-serif font-bold text-[var(--text-primary)]">{highestSnake} điểm</span>
             <span className="text-[10px] font-semibold mt-0.5 font-sans block" style={{ color: accent }}>
               Max: {highestScore}% bài thi
             </span>
@@ -286,13 +309,13 @@ export default function AdminStatsDashboard() {
         </div>
 
         {/* KPI 4 */}
-        <div className="bg-[#FAF9F6] border border-neutral-200 rounded-2xl p-5 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
+        <div className="bg-[var(--card-bg)] border border-[var(--border-default)] rounded-2xl p-5 shadow-sm flex items-center gap-4 hover:border-[var(--accent)]/40 transition-all">
           <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: accentLight, color: accent }}>
             <GraduationCap className="w-6 h-6" />
           </div>
           <div>
-            <span className="text-[10px] font-serif font-semibold text-neutral-500 uppercase tracking-wider block">Trung Bình Lớp</span>
-            <span className="text-2xl font-serif font-bold text-[#1A1814]">{avgTestScore}%</span>
+            <span className="text-[10px] font-serif font-semibold text-[var(--text-secondary)] uppercase tracking-wider block">Trung Bình Lớp</span>
+            <span className="text-2xl font-serif font-bold text-[var(--text-primary)]">{avgTestScore}%</span>
             <span className="text-[10px] font-sans flex items-center mt-0.5" style={{ color: avgTestScore >= 50 ? '#16a34a' : '#dc2626' }}>
               {avgTestScore >= 50 ? 'Đạt yêu cầu đào tạo' : 'Cần cải thiện'}
             </span>
@@ -302,14 +325,14 @@ export default function AdminStatsDashboard() {
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-8">
 
         {/* Line Chart */}
-        <div className="lg:col-span-8 bg-[#FAF9F6] border border-neutral-200 p-6 rounded-2xl shadow-sm space-y-4">
+        <div className="lg:col-span-8 bg-[var(--card-bg)] border border-[var(--border-default)] p-4 sm:p-6 rounded-2xl shadow-sm space-y-4">
           <div className="flex justify-between items-center pb-2">
             <div>
-              <h3 className="font-serif font-bold text-lg text-neutral-800">Biểu đồ Xu Hướng Điểm Số</h3>
-              <p className="text-xs text-neutral-500 font-sans">Lịch sử thống kê điểm số đạt được qua các lượt làm đề thi thử</p>
+              <h3 className="font-serif font-bold text-lg text-[var(--text-primary)]">Biểu đồ Xu Hướng Điểm Số</h3>
+              <p className="text-xs text-[var(--text-secondary)] font-sans">Lịch sử thống kê điểm số đạt được qua các lượt làm đề thi thử</p>
             </div>
             <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-neutral-400">CHART.JS LINE</span>
           </div>
@@ -326,11 +349,11 @@ export default function AdminStatsDashboard() {
         </div>
 
         {/* Doughnut Categories breakdown */}
-        <div className="lg:col-span-4 bg-[#FAF9F6] border border-neutral-200 p-6 rounded-2xl shadow-sm space-y-4">
+        <div className="lg:col-span-4 bg-[var(--card-bg)] border border-[var(--border-default)] p-4 sm:p-6 rounded-2xl shadow-sm space-y-4">
           <div className="flex justify-between items-center pb-2">
             <div>
-              <h3 className="font-serif font-bold text-lg text-neutral-800">Cơ Cấu Bộ Đề</h3>
-              <p className="text-xs text-neutral-500 font-sans">Phân bổ bộ đề thi theo môn học</p>
+              <h3 className="font-serif font-bold text-lg text-[var(--text-primary)]">Cơ Cấu Bộ Đề</h3>
+              <p className="text-xs text-[var(--text-secondary)] font-sans">Phân bổ bộ đề thi theo môn học</p>
             </div>
             <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-neutral-400">CHART.JS</span>
           </div>
@@ -343,23 +366,28 @@ export default function AdminStatsDashboard() {
       </div>
 
       {/* Main Database Table list of exams */}
-      <div className="bg-[#FAF9F6] border border-neutral-200 rounded-2xl overflow-hidden shadow-sm">
-        <div className="p-6 border-b border-neutral-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/50">
+      <div className="bg-[var(--card-bg)] border border-[var(--border-default)] rounded-2xl overflow-hidden shadow-sm">
+        <div className="p-4 sm:p-6 border-b border-[var(--border-default)] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[var(--surface-soft)]">
           <div>
-            <h3 className="font-serif font-bold text-lg text-neutral-800">Danh Sách & Quản Lý Đề Thi Đào Tạo</h3>
-            <p className="text-xs text-neutral-500 font-sans mt-0.5">Danh sách các bộ đề thi thử được kết nối vào hệ thống Neon PostgreSQL qua Adapter</p>
+            <h3 className="font-serif font-bold text-lg text-[var(--text-primary)]">Danh Sách & Quản Lý Đề Thi Đào Tạo</h3>
+            <p className="text-xs text-[var(--text-secondary)] font-sans mt-0.5">Danh sách các bộ đề thi thử được kết nối vào hệ thống Neon PostgreSQL qua Adapter</p>
           </div>
           <div className="bg-[#1A1814] text-[#F2EFE7] px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold tracking-wider flex items-center gap-2 border border-neutral-300">
             <BookOpen className="w-4 h-4" style={{ color: accent }} />
             <span>ACTIVE POSTGRESQL ENGINE</span>
           </div>
         </div>
+        {deleteError && (
+          <div role="alert" className="border-b border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-600 sm:px-6">
+            {deleteError}
+          </div>
+        )}
 
         {/* Table representation */}
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-sm">
             <thead>
-              <tr className="bg-neutral-50 border-b border-neutral-200 text-neutral-500 font-serif font-semibold text-xs tracking-wider uppercase">
+              <tr className="bg-[var(--surface-soft)] border-b border-[var(--border-default)] text-[var(--text-secondary)] font-serif font-semibold text-xs tracking-wider uppercase">
                 <th className="p-4 pl-6">TÊN BỘ ĐỀ THI</th>
                 <th className="p-4">CHUYÊN MỤC</th>
                 <th className="p-4">SỐ LƯỢNG CÂU HỎI</th>
@@ -367,19 +395,19 @@ export default function AdminStatsDashboard() {
                 <th className="p-4 text-right pr-6">HÀNH ĐỘNG</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-100 font-sans text-[var(--text-primary)]">
+            <tbody className="divide-y divide-[var(--border-default)] font-sans text-[var(--text-primary)]">
               {exams.map((exam) => {
                 const inferredCat = getExamCategory(exam.title);
                 return (
-                  <tr key={exam.id} className="hover:bg-neutral-50/50 transition-colors">
+                  <tr key={exam.id} className="hover:bg-[var(--surface-soft)] transition-colors">
                     <td className="p-4 pl-6">
                       <div className="space-y-0.5">
-                        <p className="font-serif font-bold text-neutral-800 text-sm">{exam.title}</p>
-                        <p className="text-[10px] text-neutral-400 font-mono italic max-w-sm truncate">{exam.id}</p>
+                        <p className="font-serif font-bold text-[var(--text-primary)] text-sm">{exam.title}</p>
+                        <p className="text-[10px] text-[var(--text-secondary)] font-mono italic max-w-sm truncate">{exam.id}</p>
                       </div>
                     </td>
                     <td className="p-4">
-                      <span className="inline-block bg-[#1A1814]/5 text-[var(--text-primary)] px-2.5 py-1 rounded-full text-xs font-medium">
+                      <span className="inline-block bg-[var(--surface-soft)] border border-[var(--border-default)] text-[var(--text-primary)] px-2.5 py-1 rounded-full text-xs font-medium">
                         {inferredCat}
                       </span>
                     </td>
@@ -387,9 +415,10 @@ export default function AdminStatsDashboard() {
                     <td className="p-4 font-mono font-medium">{exam.duration} phút</td>
                     <td className="p-4 text-right pr-6">
                       <button
-                        onClick={() => deleteExam(exam.id)}
-                        className="p-2 text-neutral-400 rounded-lg transition-colors cursor-pointer hover:bg-red-50 hover:text-red-500"
-                        title="Xóa đề thi khỏi cơ sở dữ liệu"
+                        onClick={() => void handleDeleteExam(exam.id)}
+                        disabled={deletingExamId !== null}
+                        className="p-2 text-neutral-400 rounded-lg transition-colors cursor-pointer hover:bg-red-50 hover:text-red-500 disabled:cursor-wait disabled:opacity-40"
+                        title={deletingExamId === exam.id ? 'Đang xóa đề thi...' : 'Xóa đề thi khỏi cơ sở dữ liệu'}
                       >
                         <Trash2 className="w-4 h-5" />
                       </button>

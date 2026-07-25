@@ -46,6 +46,8 @@ model Question {
   explanation String?  // Giải thích chi tiết đáp án đúng
   points      Int      @default(1)
   order       Int      @default(0)
+  imageUrl    String?  // Đường dẫn hoặc Base64 ảnh minh họa nếu có
+  imageSvg    String?  // Mã nguồn SVG do Gemini thiết kế nếu có
   exam        Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
   examId      String
   answers     Answer[]

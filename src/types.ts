@@ -19,6 +19,8 @@ export interface Question {
   explanation?: string;
   points: number;
   order: number;
+  imageUrl?: string;
+  imageSvg?: string;
   answers: Answer[];
 }
 

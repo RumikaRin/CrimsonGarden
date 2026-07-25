@@ -1,15 +1,33 @@
-export function playSound(type: 'correct' | 'wrong' | 'gameover' | 'start' | 'win' | 'tick') {
+type SnakeSound = 'correct' | 'wrong' | 'gameover' | 'start' | 'win' | 'tick' | 'turn';
+
+interface WebkitAudioWindow extends Window {
+  webkitAudioContext?: typeof AudioContext;
+}
+
+let audioContext: AudioContext | null = null;
+
+function getAudioContext(): AudioContext | null {
+  if (typeof window === 'undefined') return null;
+  const AudioContextClass = window.AudioContext || (window as WebkitAudioWindow).webkitAudioContext;
+  if (!AudioContextClass) return null;
+  audioContext ??= new AudioContextClass();
+  if (audioContext.state === 'suspended') void audioContext.resume();
+  return audioContext;
+}
+
+export function playSound(type: SnakeSound) {
   try {
-    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const audioCtx = getAudioContext();
+    if (!audioCtx) return;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.connect(gain);
     gain.connect(audioCtx.destination);
 
-    if (type === 'tick') {
+    if (type === 'tick' || type === 'turn') {
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+      osc.frequency.setValueAtTime(type === 'turn' ? 420 : 800, audioCtx.currentTime);
+      gain.gain.setValueAtTime(type === 'turn' ? 0.025 : 0.04, audioCtx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
       osc.start(); osc.stop(audioCtx.currentTime + 0.05);
       return;

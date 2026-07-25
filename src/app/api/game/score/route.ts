@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { findRealUser, isPlaceholderUserId } from '@/lib/users';
+import { memoryCache } from '@/lib/cache';
+import { jwt } from '@/lib/jwt';
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,6 +25,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Vui lòng đăng nhập để lưu điểm game.' }, { status: 401 });
     }
 
+    // Xác thực token JWT
+    const cookieHeader = req.headers.get('cookie');
+    const token = jwt.getTokenFromCookieString(cookieHeader);
+    const decoded = jwt.verify(token || '');
+    if (!decoded || decoded.userId !== userId) {
+      return NextResponse.json({ success: false, error: 'Phiên đăng nhập đã hết hạn hoặc không hợp lệ.' }, { status: 401 });
+    }
+
     const dbUser = await findRealUser(prisma, userId);
     if (!dbUser) {
       return NextResponse.json({ success: false, error: 'Tài khoản không tồn tại.' }, { status: 404 });
@@ -38,6 +48,10 @@ export async function POST(req: NextRequest) {
         playedAt: scoreData.playedAt ? new Date(scoreData.playedAt) : new Date()
       }
     });
+
+    // Invalidate cache
+    memoryCache.delete('leaderboard:list');
+    memoryCache.delete('leaderboard:stats');
 
     return NextResponse.json({ success: true, score: savedScore });
   } catch (err: unknown) {

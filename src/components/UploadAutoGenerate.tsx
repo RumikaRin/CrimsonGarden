@@ -36,6 +36,60 @@ interface TempQuestion {
   answers: TempAnswer[];
 }
 
+function ParserWorkbenchHeader({ theme }: { theme: string }) {
+  const accent = 'var(--accent)';
+  return (
+    <div className="card-layered p-4 sm:p-6 max-w-2xl mx-auto">
+      <span className="text-[11px] font-sans font-bold tracking-widest uppercase block mb-1" style={{ color: accent }}>
+        BÓC TÁCH KHÔNG GIỚI HẠN CỤC BỘ (OFFLINE-FIRST)
+      </span>
+      <h2 className="text-3xl font-serif font-semibold text-[var(--text-primary)] tracking-tight">
+        Upload & Tự Động Định Dạng Đề Thi
+      </h2>
+      <p className="text-sm font-sans text-[var(--text-secondary)] mt-2 leading-relaxed">
+        Tải tài liệu ôn tập định dạng Word mẫu (.txt) hoặc danh sách Excel mẫu (.csv). Hệ thống sử dụng thuật toán phân tích cú pháp trực tiếp của ứng dụng để bóc tách nội dung, chuẩn hóa câu hỏi với đầy đủ đáp án & giải thích chi tiết.
+      </p>
+    </div>
+  );
+}
+
+function GenerationStatusRail({
+  successMessage,
+  errorMessage,
+  generatedCount,
+}: {
+  successMessage: string | null;
+  errorMessage: string | null;
+  generatedCount: number;
+}) {
+  return (
+    <div className="space-y-4">
+      {successMessage && (
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-5 flex gap-3 text-green-800 animate-fade-in sm:p-6 shadow-sm">
+          <CheckCircle className="w-6 h-6 text-green-600 shrink-0" />
+          <div className="space-y-1.5 leading-snug">
+            <h5 className="font-serif font-bold text-base">Thành Công!</h5>
+            <p className="text-sm font-sans text-green-700">
+              {successMessage} Đề thi mới gồm {generatedCount} câu hỏi đã có sẵn trong danh sách luyện tập.
+            </p>
+          </div>
+        </div>
+      )}
+      {errorMessage && (
+        <div className="bg-red-50 border border-red-100 rounded-2xl p-5 flex gap-3 text-red-800 animate-fade-in shadow-sm">
+          <AlertCircle className="w-6 h-6 text-red-500 shrink-0" />
+          <div className="space-y-1 leading-snug">
+            <h5 className="font-serif font-bold text-base">Phát sinh lỗi phân tích</h5>
+            <p className="text-sm font-sans text-red-700">
+              {errorMessage} Vui lòng kiểm tra lại cấu trúc file hoặc tải file mẫu để kiểm tra.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function UploadAutoGenerate() {
   const { addExam, theme } = useExamStore();
   const isGreenTheme = theme === 'neon';
@@ -264,7 +318,7 @@ export default function UploadAutoGenerate() {
     }
   };
 
-  // Submit and generate using local parse engine
+  // Submit and generate using local parse engine or server Gemini engine
   const handleGenerateExam = async () => {
     if (!selectedFile || !fileObject) return;
 
@@ -272,28 +326,34 @@ export default function UploadAutoGenerate() {
     setErrorMessage(null);
     setSuccessMessage(null);
 
+    const isImage = /\.(png|jpg|jpeg|gif|webp)$/i.test(selectedFile.name);
+    const isPdf = /\.pdf$/i.test(selectedFile.name);
+    const isTextOrCsv = /\.(txt|csv)$/i.test(selectedFile.name);
+
     const reader = new FileReader();
     reader.onload = async () => {
       try {
-        const text = reader.result as string;
+        let payload: any = {
+          fileName: selectedFile.name,
+          fileType: selectedFile.type || (isPdf ? 'application/pdf' : isImage ? 'image/jpeg' : ''),
+          fileSizeKB: selectedFile.size
+        };
 
-        // Pick parse algorithm based on extension
-        const isExcel = selectedFile.type === '.csv' || selectedFile.type === '.xlsx';
-        const parsedExam = isExcel ? parseCSV(text) : parseTXT(text);
-
-        // Clean title
-        parsedExam.title = selectedFile.name.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
+        if (isTextOrCsv) {
+          const text = reader.result as string;
+          const isExcel = selectedFile.name.toLowerCase().endsWith('.csv');
+          const parsedExam = isExcel ? parseCSV(text) : parseTXT(text);
+          parsedExam.title = selectedFile.name.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
+          payload.parsedExam = parsedExam;
+        } else {
+          payload.fileData = reader.result as string; // base64 data url
+        }
 
         // Save to DB via Prisma API sync
         const response = await fetch('/api/generate-exam', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fileName: selectedFile.name,
-            fileType: selectedFile.type,
-            fileSizeKB: selectedFile.size,
-            parsedExam: parsedExam // Direct JSON transfer
-          })
+          body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
@@ -325,7 +385,11 @@ export default function UploadAutoGenerate() {
       setIsGenerating(false);
     };
 
-    reader.readAsText(fileObject);
+    if (isTextOrCsv) {
+      reader.readAsText(fileObject);
+    } else {
+      reader.readAsDataURL(fileObject);
+    }
   };
 
   const handleAutoGenerateRandom = async () => {
@@ -387,21 +451,11 @@ export default function UploadAutoGenerate() {
   };
 
   return (
-    <div className="space-y-8">
+    <div data-generate-shell="parser-workbench" className="space-y-8">
       {/* Introduction */}
-      <div className="card-layered p-4 sm:p-6 max-w-2xl mx-auto">
-        <span className="text-[11px] font-sans font-bold tracking-widest uppercase block mb-1" style={{ color: accent }}>
-          BÓC TÁCH KHÔNG GIỚI HẠN CỤC BỘ (OFFLINE-FIRST)
-        </span>
-        <h2 className="text-3xl font-serif font-semibold text-[#1A1814] tracking-tight">
-          Upload & Tự Động Định Dạng Đề Thi
-        </h2>
-        <p className="text-sm font-sans text-[var(--text-secondary)] mt-2 leading-relaxed">
-          Tải tài liệu ôn tập định dạng Word mẫu (.txt) hoặc danh sách Excel mẫu (.csv). Hệ thống sử dụng thuật toán phân tích cú pháp trực tiếp của ứng dụng để bóc tách nội dung, chuẩn hóa câu hỏi với đầy đủ đáp án & giải thích chi tiết.
-        </p>
-      </div>
+      <ParserWorkbenchHeader theme={theme} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 gap-5 items-start lg:grid-cols-12 lg:gap-8">
         {/* Dropzone File Upload section */}
         <div className="lg:col-span-7 space-y-6">
           <div
@@ -410,7 +464,7 @@ export default function UploadAutoGenerate() {
             onDragLeave={handleDrag}
             onDrop={handleDrop}
             className={cn(
-              "card-layered p-8 sm:p-12 text-center transition-all relative group cursor-pointer",
+              "card-layered p-5 sm:p-12 text-center transition-all relative group cursor-pointer",
               dragActive && "opacity-90 scale-[1.01]",
               selectedFile && "opacity-95"
             )}
@@ -418,7 +472,7 @@ export default function UploadAutoGenerate() {
             <input
               type="file"
               id="file-upload-input"
-              accept=".csv,.txt"
+              accept=".csv,.txt,.pdf,.png,.jpg,.jpeg"
               onChange={handleFileInput}
               className="hidden"
             />
@@ -440,7 +494,7 @@ export default function UploadAutoGenerate() {
                     </label>
                   </p>
                   <p className="text-xs text-neutral-500 font-mono">
-                    Hỗ trợ tệp cấu trúc Word (.txt) hoặc Excel (.csv) lên đến 20MB
+                    Hỗ trợ tệp Word (.txt), Excel (.csv), tài liệu (.pdf) hoặc hình ảnh (.png, .jpg, .jpeg) lên đến 20MB
                   </p>
                 </div>
               </div>
@@ -452,12 +506,16 @@ export default function UploadAutoGenerate() {
                 >
                   {selectedFile.type === '.csv' ? (
                     <FileSpreadsheet className="w-8 h-8" />
+                  ) : selectedFile.type === '.pdf' ? (
+                    <FileText className="w-8 h-8 text-red-500" />
+                  ) : (selectedFile.type === '.png' || selectedFile.type === '.jpg' || selectedFile.type === '.jpeg') ? (
+                    <FileText className="w-8 h-8 text-emerald-500" />
                   ) : (
                     <FileText className="w-8 h-8" />
                   )}
                 </div>
                 <div className="space-y-1.5">
-                  <h4 className="font-serif font-bold text-[#1A1814] max-w-xs mx-auto truncate text-base">
+                  <h4 className="font-serif font-bold text-[var(--text-primary)] max-w-xs mx-auto truncate text-base">
                     {selectedFile.name}
                   </h4>
                   <p className="text-xs text-neutral-500 font-mono">
@@ -483,7 +541,7 @@ export default function UploadAutoGenerate() {
             <button
               disabled={isGenerating}
               onClick={handleGenerateExam}
-              className="w-full flex items-center justify-center gap-2 text-white py-4 rounded-2xl shadow-md hover:shadow-lg font-sans font-bold transition-all active:scale-98 cursor-pointer text-sm disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 text-[var(--accent-foreground)] py-4 rounded-2xl shadow-md hover:shadow-lg font-sans font-bold transition-all active:scale-98 cursor-pointer text-sm disabled:opacity-50"
               style={{ backgroundColor: accent }}
             >
               {isGenerating ? (
@@ -499,35 +557,17 @@ export default function UploadAutoGenerate() {
           )}
 
           {/* Status banner response */}
-          {successMessage && (
-            <div className="bg-green-50 border border-green-200 rounded-2xl p-5 flex gap-3 text-green-800 animate-fade-in sm:p-6 shadow-sm">
-              <CheckCircle className="w-6 h-6 text-green-600 shrink-0" />
-              <div className="space-y-1.5 leading-snug">
-                <h5 className="font-serif font-bold text-base">Thành Công!</h5>
-                <p className="text-sm font-sans text-green-700">
-                  {successMessage} Đề thi mới gồm {generatedCount} câu hỏi đã có sẵn trong danh sách luyện tập.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {errorMessage && (
-            <div className="bg-red-50 border border-red-100 rounded-2xl p-5 flex gap-3 text-red-800 animate-fade-in shadow-sm">
-              <AlertCircle className="w-6 h-6 text-red-500 shrink-0" />
-              <div className="space-y-1 leading-snug">
-                <h5 className="font-serif font-bold text-base">Phát sinh lỗi phân tích</h5>
-                <p className="text-sm font-sans text-red-700">
-                  {errorMessage} Vui lòng kiểm tra lại cấu trúc file hoặc tải file mẫu để kiểm tra.
-                </p>
-              </div>
-            </div>
-          )}
+          <GenerationStatusRail
+            successMessage={successMessage}
+            errorMessage={errorMessage}
+            generatedCount={generatedCount}
+          />
         </div>
 
         {/* Instructive documentation & Quick Sample testing sidebar options */}
         <div className="lg:col-span-5 space-y-6">
           {/* Card: Auto-Generate Random Exam */}
-          <div className="card-layered p-6 space-y-4">
+          <div className="card-layered p-4 sm:p-6 space-y-4">
             <h4 className="font-serif text-sm font-bold text-neutral-800 flex items-center gap-2">
               <Dices className="w-4 h-4" style={{ color: accent }} /> Tạo Đề Tự Động (Không AI)
             </h4>
@@ -546,8 +586,8 @@ export default function UploadAutoGenerate() {
                     className={cn(
                       "py-2 rounded-xl text-xs font-sans font-bold transition-all border cursor-pointer",
                       numQuestions === num
-                        ? "bg-[var(--accent)] text-white border-[var(--accent)] shadow-sm"
-                        : "bg-white text-[var(--text-primary)] border-[var(--border-default)] hover:bg-[var(--accent-light)]/20"
+                        ? "bg-[var(--accent)] text-[var(--accent-foreground)] border-[var(--accent)] shadow-sm"
+                        : "bg-[var(--card-bg)] text-[var(--text-primary)] border-[var(--border-default)] hover:bg-[var(--accent-light)]/20"
                     )}
                   >
                     {num} câu
@@ -558,7 +598,7 @@ export default function UploadAutoGenerate() {
             <button
               disabled={isAutoGenerating}
               onClick={handleAutoGenerateRandom}
-              className="w-full flex items-center justify-center gap-2 text-white py-3 rounded-xl shadow-sm hover:shadow-md font-sans font-bold transition-all active:scale-98 cursor-pointer text-xs disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 text-[var(--accent-foreground)] py-3 rounded-xl shadow-sm hover:shadow-md font-sans font-bold transition-all active:scale-98 cursor-pointer text-xs disabled:opacity-50"
               style={{ backgroundColor: 'var(--accent)' }}
             >
               {isAutoGenerating ? (
@@ -573,7 +613,7 @@ export default function UploadAutoGenerate() {
             </button>
           </div>
 
-          <div className="card-layered p-6 space-y-4">
+          <div className="card-layered p-4 sm:p-6 space-y-4">
             <h4 className="font-serif text-sm font-bold text-neutral-800 flex items-center gap-2">
               <Download className="w-4 h-4" style={{ color: accent }} /> Tải file mẫu
             </h4>

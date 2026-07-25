@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { compareSync } from 'bcryptjs';
+import { jwt } from '@/lib/jwt';
+import { cookies } from 'next/headers';
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,6 +30,23 @@ export async function POST(req: NextRequest) {
     if (!passwordMatch) {
       return NextResponse.json({ success: false, error: 'Mật khẩu không chính xác.' });
     }
+
+    // 1. Tạo JWT Token
+    const token = jwt.sign({
+      userId: user.id,
+      email: user.email,
+      role: user.role
+    });
+
+    // 2. Set Cookie HttpOnly
+    const cookieStore = await cookies();
+    cookieStore.set('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 // 7 ngày
+    });
 
     return NextResponse.json({
       success: true,

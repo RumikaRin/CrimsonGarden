@@ -11,6 +11,7 @@ export function getPrisma(): PrismaClient | null {
     try {
       prismaClient = new PrismaClient({
         datasources: { db: { url } },
+        log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
       });
     } catch {
       return null;

@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { resolveDisplayName, shouldShowOnLeaderboard } from '@/lib/leaderboard';
+import { memoryCache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    // 1. Kiểm tra cache trước
+    const cachedLeaderboard = memoryCache.get<any[]>('leaderboard:list');
+    if (cachedLeaderboard) {
+      return NextResponse.json({ success: true, leaderboard: cachedLeaderboard, fromCache: true });
+    }
+
     const prisma = getPrisma();
     if (!prisma) {
       return NextResponse.json({ success: false, error: 'DB_OFFLINE' }, { status: 503 });
@@ -82,6 +89,9 @@ export async function GET() {
         if (a.bestTime !== b.bestTime) return a.bestTime - b.bestTime;
         return b.lastActive.localeCompare(a.lastActive);
       });
+
+    // 2. Lưu cache trong 60 giây
+    memoryCache.set('leaderboard:list', leaderboard, 60);
 
     return NextResponse.json({ success: true, leaderboard });
   } catch (err: any) {

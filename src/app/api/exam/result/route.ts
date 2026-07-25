@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { findRealUser, isPlaceholderUserId } from '@/lib/users';
+import { memoryCache } from '@/lib/cache';
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,6 +38,10 @@ export async function POST(req: NextRequest) {
     });
 
     console.log(`[UserExamResult] Saved for user ${data.userId}, exam ${data.examId}, score ${data.score}`);
+    // Invalidate cache
+    memoryCache.delete('leaderboard:list');
+    memoryCache.delete('leaderboard:stats');
+
     return NextResponse.json({ success: true, result });
   } catch (err: any) {
     console.error('[UserExamResult Error]:', err);
